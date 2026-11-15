@@ -9,10 +9,7 @@
     "userInterfaceStyle": "dark",
     "ios": {
       "supportsTablet": true,
-      "bundleIdentifier": "com.dare.hackathon",
-      "runtimeVersion": {
-        "policy": "appVersion"
-      }
+      "bundleIdentifier": "com.dare.hackathon"
     },
     "android": {
       "package": "com.dare.hackathon",
@@ -58,6 +55,9 @@
       },
       "checkAutomatically": "ON_LOAD",
       "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
