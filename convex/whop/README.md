@@ -14,6 +14,8 @@ No product ID is required. Each authenticated campaign checkout creates a one-ti
 
 All four variables are server-only. The account ID and return URL are configuration, while the API key and webhook secret are credentials. SDK logging is disabled; provider responses and credentials are not returned in errors.
 
+If Whop returns `400` with `idempotency_key_mismatch`, the first checkout attempt used different configuration (for example, a return URL that has since changed). The app instructs the sponsor to create a new campaign. Do not retry with an alternate idempotency key or replace the old campaign's binding: that could create a second payable checkout. Existing paid campaigns are unchanged. Other provider failures retain the generic retry message; diagnostics log only the HTTP status and an allowlisted category, never raw provider content.
+
 ## Contract
 
 - `api.whop.checkout.create({ campaignId })` returns `{ checkoutUrl, sandbox: true }` only after the sponsor-owned frozen terms are bound to that checkout. It returns no payment success claim.

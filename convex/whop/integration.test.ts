@@ -158,6 +158,82 @@ async function state(f: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe("sandbox checkout through real Convex functions", () => {
+  it("explains verified idempotency payload conflicts without changing the checkout key", async () => {
+    const f = await fixture();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    const keys: (string | null)[] = [];
+    const fetcher = vi.fn(
+      async (_input: string | URL | Request, init?: RequestInit) => {
+        keys.push(new Headers(init?.headers).get("Idempotency-Key"));
+        return Response.json(
+          {
+            error: {
+              code: "idempotency_key_mismatch",
+              type: "bad_request",
+              message:
+                "This Idempotency-Key was already used with a different request",
+              private_body: "private-key-and-person@example.com",
+            },
+          },
+          { status: 400 },
+        );
+      },
+    );
+    vi.stubGlobal("fetch", fetcher);
+    for (let attempt = 0; attempt < 2; attempt++) {
+      await expect(
+        f.sponsor.action(api.whop.checkout.create, {
+          campaignId: f.campaignId,
+        }),
+      ).rejects.toThrow(
+        "Checkout configuration changed since the first attempt. Create a new campaign.",
+      );
+    }
+    expect(fetcher).toHaveBeenCalledTimes(2);
+    expect(keys).toEqual([
+      `dare:checkout:${f.campaignId}:v1`,
+      `dare:checkout:${f.campaignId}:v1`,
+    ]);
+    expect(log).toHaveBeenCalledWith("Whop sandbox checkout failed", {
+      status: 400,
+      category: "idempotency_conflict",
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private-key");
+    const result = await state(f);
+    expect(result.campaign?.state).toBe("draft");
+    expect(result.campaign?.providerCheckoutId).toBeUndefined();
+    expect(result.payments).toHaveLength(0);
+  });
+  it("keeps unrelated provider400 failures retryable with generic client errors", async () => {
+    const f = await fixture();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              code: "parameter_invalid",
+              type: "invalid_request_error",
+              message: "The redirect_url parameter is invalid: private-input",
+            },
+          },
+          { status: 400 },
+        ),
+      ),
+    );
+    await expect(
+      f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow(
+      "Whop sandbox checkout is unavailable. Your campaign is not activated. Please try again.",
+    );
+    expect(log).toHaveBeenCalledWith("Whop sandbox checkout failed", {
+      status: 400,
+      category: "invalid_request",
+    });
+    expect(JSON.stringify(log.mock.calls)).not.toContain("private-input");
+    expect((await state(f)).campaign?.state).toBe("draft");
+  });
   it("requires an HTTPS return URL instead of a native deep link", () => {
     vi.stubEnv("WHOP_CHECKOUT_RETURN_URL", "dare://sponsor");
     expect(() => whopConfig()).toThrow(
