@@ -27,7 +27,7 @@ The sandbox charge represents `winnerCount * rewardUsdCents`, with zero DARE pla
 
 ## Verification
 
-Run `npm test -- convex/whop`, `npm run typecheck`, and `npm run lint` after integrating TK's generated backend files. Unit tests exercise signed raw payloads, forged/stale signatures, cancelled/failed events, exact USD conversion, frozen binding mismatch and refund rejection. These tests do not claim a live Whop transaction.
+Run `npm test -- convex/whop`, `npm run typecheck`, and `npm run lint` after integrating TK's generated backend files. Unit tests exercise signed raw payloads, forged/stale signatures, cancelled/failed events, exact USD conversion, frozen binding mismatch and refund rejection. Integration tests exercise real Convex functions, Auth2 core-session fixtures and atomic payment writes, with only the external Whop HTTP responses mocked. They verify owner authorization, frozen checkout terms, duplicate delivery and failed-payment rejection. They do not test password hashing or claim a live Whop transaction.
 
 For live verification, create a draft through an authenticated sponsor, open its returned `sandbox.whop.com/checkout/...` URL, and use test card `4242 4242 4242 4242` with a future expiry and any three-digit CVC. Confirm the signed webhook produces exactly one payment record and a reactive campaign activation. Replay the same event to verify no second activation. On a separate draft, close checkout without paying and verify it stays inactive. `4000 0000 0000 0002` is the sandbox declined-card test. Never use a production card or claim real payouts.
 
