@@ -79,13 +79,6 @@ export default function DareDetailScreen() {
         <Text style={text.body}>{campaign.criteria}</Text>
       </View>
 
-      {campaign.outcome ? (
-        <Card style={styles.outcomeCard}>
-          <Text style={text.small}>Outcome</Text>
-          <Text style={styles.outcome}>{campaign.outcome === "VOID" ? "Voided · refunded" : campaign.outcome}</Text>
-        </Card>
-      ) : null}
-
       <Card>
         <View style={styles.between}>
           <Text style={styles.blockTitle}>Will anyone do it?</Text>
@@ -242,8 +235,6 @@ const styles = StyleSheet.create({
   title: { color: colors.text, ...font.largeTitle, fontSize: 30, lineHeight: 36 },
   block: { gap: 6 },
   blockTitle: { color: colors.text, ...font.headline },
-  outcomeCard: { gap: 4 },
-  outcome: { color: colors.text, ...font.title },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
   bar: { flexDirection: "row", height: 8, borderRadius: 4, overflow: "hidden", gap: 3 },
   barYes: { backgroundColor: colors.positive, borderRadius: 4 },
