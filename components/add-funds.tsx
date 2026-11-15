@@ -1,6 +1,6 @@
-import { useAction } from "convex/react";
+import { useAction, useQuery } from "convex/react";
 import { openBrowserAsync } from "expo-web-browser";
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
@@ -16,16 +16,20 @@ const MAX_CENTS = 50000;
 export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose: () => void }) {
   const insets = useSafeAreaInsets();
   const create = useAction(api.whop.deposits.create);
+  const me = useQuery(api.profiles.me, visible ? {} : "skip");
   const [preset, setPreset] = useState<number | "custom">(2500);
   const [custom, setCustom] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
-  const [request, setRequest] = useState<{ cents: number; id: string } | null>(null);
+  const [request, setRequest] = useState<{ cents: number; id: string; completedBefore: number } | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const cents = preset === "custom" ? Math.round(Number(custom) * 100) : preset;
   const valid = Number.isFinite(cents) && cents >= MIN_CENTS && cents <= MAX_CENTS;
+
+  const completedCount = (amount: number) =>
+    me?.deposits.filter((d) => d.status === "completed" && d.amountUsdCents === amount).length ?? 0;
 
   const close = () => {
     setError(null);
@@ -35,9 +39,19 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
     onClose();
   };
 
+  const confirmed = request !== null && checkoutUrl !== null && me !== undefined && completedCount(request.cents) > request.completedBefore;
+
+  const added = confirmed ? request.cents : null;
+
+  useEffect(() => {
+    if (added === null) return;
+    const timer = setTimeout(close, 1800);
+    return () => clearTimeout(timer);
+  });
+
   const submit = async () => {
-    if (!valid || busy) return;
-    const current = request?.cents === cents ? request : { cents, id: newRequestId() };
+    if (!valid || busy || me === undefined) return;
+    const current = request?.cents === cents ? request : { cents, id: newRequestId(), completedBefore: completedCount(cents) };
     setRequest(current);
     setBusy(true);
     setError(null);
@@ -95,8 +109,12 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
             </View>
           ) : null}
           <ErrorText message={preset === "custom" && custom !== "" && !valid ? "Enter $5 to $500." : error} />
-          {notice ? <Text style={styles.caption}>{notice}</Text> : null}
-          {checkoutUrl ? (
+          {notice && added === null ? <Text style={styles.caption}>{notice}</Text> : null}
+          {added !== null ? (
+            <Text style={styles.added} accessibilityLiveRegion="polite">
+              Added {formatUsd(added, true)}
+            </Text>
+          ) : checkoutUrl ? (
             <Button label={`Pay ${formatUsd(cents, true)} with Whop`} onPress={openCheckout} />
           ) : (
             <Button label={valid ? `Add ${formatUsd(cents, true)}` : "Add funds"} onPress={submit} loading={busy} disabled={!valid} />
@@ -123,6 +141,7 @@ const styles = StyleSheet.create({
   grabber: { alignSelf: "center", width: 36, height: 5, borderRadius: 3, backgroundColor: colors.surfaceHigh, marginBottom: 6 },
   title: { color: colors.text, ...font.title },
   caption: { color: colors.muted, ...font.footnote },
+  added: { color: colors.positive, ...font.headline, textAlign: "center", paddingVertical: 14 },
   chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
   amountBox: { flexDirection: "row", alignItems: "center", borderWidth: 1, borderColor: colors.border, borderRadius: radius.md, paddingHorizontal: 18 },
   prefix: { color: colors.muted, fontSize: 28, fontWeight: "700", marginRight: 4 },
