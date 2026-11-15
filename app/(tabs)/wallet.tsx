@@ -66,7 +66,7 @@ export default function WalletScreen() {
             ) : (
               deposits.map((d, i) => (
                 <ListRow
-                  key={d.id ?? i}
+                  key={`${d.createdAt}-${i}`}
                   first={i === 0}
                   icon="arrow-down"
                   title="Deposit"
