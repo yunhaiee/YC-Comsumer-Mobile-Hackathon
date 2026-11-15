@@ -1,8 +1,9 @@
 import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
-import type { ComponentProps, PropsWithChildren, ReactNode } from "react";
+import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from "react";
 import {
   ActivityIndicator,
+  LayoutAnimation,
   Pressable,
   ScrollView,
   StyleSheet,
@@ -346,6 +347,38 @@ export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) 
   );
 }
 
+export function Disclosure({ title, icon, children }: PropsWithChildren<{ title: string; icon?: IconName }>) {
+  const [open, setOpen] = useState(false);
+  return (
+    <View style={styles.disclosure}>
+      <Pressable
+        accessibilityRole="button"
+        accessibilityState={{ expanded: open }}
+        onPress={() => {
+          LayoutAnimation.configureNext(LayoutAnimation.Presets.easeInEaseOut);
+          setOpen(!open);
+        }}
+        style={({ pressed }) => [styles.disclosureHead, pressed && { opacity: 0.6 }]}
+      >
+        {icon ? <Ionicons name={icon} size={20} color={colors.muted} /> : null}
+        <Text style={styles.disclosureTitle}>{title}</Text>
+        <Ionicons name={open ? "chevron-up" : "chevron-down"} size={18} color={colors.muted} />
+      </Pressable>
+      {open ? <View style={styles.disclosureBody}>{children}</View> : null}
+    </View>
+  );
+}
+
+export function Countdown({ label, tone = "muted" }: { label: string; tone?: "accent" | "muted" | "negative" }) {
+  const color = tone === "accent" ? colors.text : tone === "negative" ? colors.text : colors.muted;
+  return (
+    <View style={[styles.countdown, tone === "accent" && styles.countdownLive, tone === "negative" && styles.countdownEnded]}>
+      <Ionicons name="time-outline" size={14} color={color} />
+      <Text style={[styles.countdownText, { color }]}>{label}</Text>
+    </View>
+  );
+}
+
 export function EmptyState({
   icon,
   title,
@@ -491,6 +524,22 @@ const styles = StyleSheet.create({
   tilePressed: { backgroundColor: colors.surface },
   tileLabel: { color: colors.text, fontSize: 15, fontWeight: "500", letterSpacing: -0.2 },
   isoBadge: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
+  disclosure: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: hairline, borderColor: colors.hairline, overflow: "hidden" },
+  disclosureHead: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, minHeight: 56 },
+  disclosureTitle: { flex: 1, color: colors.text, ...font.headline },
+  disclosureBody: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  countdown: {
+    flexDirection: "row",
+    alignItems: "center",
+    gap: 5,
+    borderRadius: radius.pill,
+    paddingHorizontal: 10,
+    paddingVertical: 6,
+    backgroundColor: colors.surfaceRaised,
+  },
+  countdownLive: { backgroundColor: colors.accentSoft, borderWidth: hairline, borderColor: "rgba(139,92,246,0.5)" },
+  countdownEnded: { backgroundColor: "rgba(255,69,58,0.85)" },
+  countdownText: { fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
   empty: { alignItems: "center", gap: 8, paddingVertical: 32, paddingHorizontal: 12 },
   emptyTitle: { color: colors.text, ...font.title, textAlign: "center", marginTop: 8 },
   emptyBody: { color: colors.muted, ...font.callout, lineHeight: 21, textAlign: "center" },

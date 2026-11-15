@@ -3,12 +3,13 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { Avatar, BalanceHero, Button, Card, CenterMessage, Chip, ErrorText, ListRow, Loading, NavHeader, Pill, Row, Screen, text } from "@/components/ui";
+import { ForAgainst, PhaseCountdown, Prize } from "@/components/dare";
+import { Avatar, Button, Card, CenterMessage, Chip, Disclosure, ErrorText, Loading, NavHeader, Pill, Row, Screen, text } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNow } from "@/hooks/useNow";
-import { campaignPhase, poolSplit } from "@/lib/campaign";
-import { UNITS_PER_CREDIT, errorMessage, formatCountdown, formatCredits, formatTime, formatUsd, newRequestId } from "@/lib/format";
+import { poolSplit } from "@/lib/campaign";
+import { UNITS_PER_CREDIT, errorMessage, formatCredits, formatTime, newRequestId } from "@/lib/format";
 import { colors, font, radius } from "@/lib/theme";
 
 type Side = "YES" | "NO";
@@ -16,7 +17,7 @@ type Side = "YES" | "NO";
 const MAX_STAKE_UNITS = 1_000_000;
 
 export default function DareDetailScreen() {
-  const { id } = useLocalSearchParams<{ id: string }>();
+  const { id, side } = useLocalSearchParams<{ id: string; side?: string }>();
   const campaignId = id as Id<"campaigns">;
   const now = useNow();
   const { isAuthenticated } = useConvexAuth();
@@ -25,11 +26,11 @@ export default function DareDetailScreen() {
   const join = useMutation(api.campaigns.join);
   const [joining, setJoining] = useState(false);
   const [joinError, setJoinError] = useState<string | null>(null);
+  const [pickedSide, setPickedSide] = useState<Side>(side === "NO" ? "NO" : "YES");
 
   if (campaign === undefined) return <Loading />;
   if (campaign === null) return <CenterMessage title="Dare not found" body="It may be unpublished or removed." />;
 
-  const phase = campaignPhase(campaign, now);
   const viewer = campaign.viewer;
   const split = market ? poolSplit(market.yesStakeUnits, market.noStakeUnits) : null;
 
@@ -48,60 +49,37 @@ export default function DareDetailScreen() {
   return (
     <Screen tabBar={false}>
       <NavHeader />
-      <View style={styles.sponsorRow}>
-        <Avatar label={campaign.sponsorName} size={32} />
-        <Text style={styles.sponsor} numberOfLines={1}>
-          {campaign.sponsorName}
-        </Text>
-        {campaign.isDemo ? <Pill label="Demo" /> : null}
-      </View>
-      <View style={{ gap: 8 }}>
+      <View style={{ gap: 10 }}>
+        <View style={styles.sponsorRow}>
+          <Avatar label={campaign.sponsorName} size={24} />
+          <Text style={styles.sponsor} numberOfLines={1}>
+            {campaign.sponsorName}
+          </Text>
+          {campaign.isDemo ? <Pill label="Demo" /> : null}
+        </View>
         <Text style={styles.title}>{campaign.title}</Text>
-        <Text style={text.body}>{campaign.description}</Text>
       </View>
 
-      <BalanceHero
-        label="Reward per winner"
-        value={formatUsd(campaign.rewardUsdCents)}
-        caption={`${campaign.winnerCount} ${campaign.winnerCount === 1 ? "winner" : "winners"} · sandbox, recorded not paid`}
-      />
-      <Pill label={phase.target ? `${phase.label} ${formatCountdown(phase.target, now)}` : phase.label} tone={phase.target ? "accent" : "muted"} />
-
-      <Card style={{ gap: 0, paddingVertical: 4 }}>
-        <ListRow first title="Joined" value={String(campaign.participantCount)} />
-        <ListRow title="Predictions close" value={formatTime(campaign.predictionClosesAt)} />
-        <ListRow title="Attempts start" value={formatTime(campaign.attemptStartsAt)} />
-        <ListRow title="Evidence due" value={formatTime(campaign.deadlineAt)} />
-      </Card>
-
-      <View style={styles.block}>
-        <Text style={styles.blockTitle}>Criteria</Text>
-        <Text style={text.body}>{campaign.criteria}</Text>
+      <View style={styles.between}>
+        <View>
+          <Prize cents={campaign.rewardUsdCents} size={34} />
+          <Text style={text.small}>
+            per winner · {campaign.winnerCount} {campaign.winnerCount === 1 ? "winner" : "winners"}
+          </Text>
+        </View>
+        <PhaseCountdown campaign={campaign} />
       </View>
 
       <Card>
         <View style={styles.between}>
-          <Text style={styles.blockTitle}>Will anyone do it?</Text>
-          {split ? <Text style={text.small}>{formatCredits(split.total)}</Text> : null}
+          <Text style={styles.blockTitle}>Will someone do it?</Text>
+          {split ? <Text style={text.small}>{formatCredits(split.total)} in</Text> : null}
         </View>
-        {split ? (
-          <View style={{ gap: 8 }}>
-            <View style={styles.bar}>
-              <View style={[styles.barYes, { flex: Math.max(split.yes, 1) }]} />
-              <View style={[styles.barNo, { flex: Math.max(split.no, 1) }]} />
-            </View>
-            <View style={styles.between}>
-              <Text style={[styles.splitText, { color: colors.positive }]}>Yes {split.yes}%</Text>
-              <Text style={[styles.splitText, { color: colors.negative }]}>No {split.no}%</Text>
-            </View>
-          </View>
-        ) : (
-          <Text style={text.small}>No predictions yet.</Text>
-        )}
+        <ForAgainst campaign={campaign} onPick={viewer.canPredict ? setPickedSide : undefined} />
         {market?.position ? (
           <Row
             label="You"
-            value={`${market.position.side} · ${formatCredits(market.position.stakeUnits)}${
+            value={`${market.position.side === "YES" ? "For" : "Against"} · ${formatCredits(market.position.stakeUnits)}${
               market.position.payoutUnits !== null ? ` → ${formatCredits(market.position.payoutUnits)}` : ""
             }`}
             tone={market.position.side === "YES" ? "positive" : "negative"}
@@ -120,7 +98,7 @@ export default function DareDetailScreen() {
               <Text style={styles.blockTitle}>
                 You’re <Text style={{ color: colors.accent }}>in</Text>
               </Text>
-              <Text style={text.body}>
+              <Text style={text.small}>
                 {viewer.canSubmit
                   ? "Record one continuous video before the deadline."
                   : now < campaign.attemptStartsAt
@@ -135,25 +113,59 @@ export default function DareDetailScreen() {
               />
             </Card>
           ) : null}
+          {viewer.canPredict || viewer.role === "predictor" ? (
+            <PredictCard
+              key={pickedSide}
+              campaignId={campaignId}
+              initialSide={pickedSide}
+              lockedSide={market?.position?.side ?? null}
+              canPredict={viewer.canPredict}
+            />
+          ) : null}
           {viewer.canJoin ? (
             <View style={{ gap: 8 }}>
               <ErrorText message={joinError} />
-              <Button label="Do the dare" icon="flash" onPress={onJoin} loading={joining} />
-              <Text style={[text.small, { textAlign: "center" }]}>Players can’t predict on their own dare.</Text>
+              <Button label="Do the dare" icon="flash" variant={viewer.canPredict ? "secondary" : "primary"} onPress={onJoin} loading={joining} />
             </View>
-          ) : null}
-          {viewer.canPredict || viewer.role === "predictor" ? (
-            <PredictCard campaignId={campaignId} lockedSide={market?.position?.side ?? null} canPredict={viewer.canPredict} />
           ) : null}
           {!viewer.role && !viewer.canJoin && !viewer.canPredict ? <Text style={text.small}>Joining and predictions are closed.</Text> : null}
         </>
       )}
+
+      <View style={{ gap: 10 }}>
+        <Disclosure title="Criteria" icon="checkmark-circle-outline">
+          <Text style={text.body}>{campaign.description}</Text>
+          <Text style={text.body}>{campaign.criteria}</Text>
+        </Disclosure>
+        <Disclosure title="Schedule" icon="calendar-outline">
+          <Row label="Joined" value={String(campaign.participantCount)} />
+          <Row label="Predictions close" value={formatTime(campaign.predictionClosesAt)} />
+          <Row label="Attempts start" value={formatTime(campaign.attemptStartsAt)} />
+          <Row label="Evidence due" value={formatTime(campaign.deadlineAt)} />
+        </Disclosure>
+        <Disclosure title="How it works" icon="information-circle-outline">
+          <Text style={text.body}>For means you think someone completes it; Against means nobody does.</Text>
+          <Text style={text.body}>Predictions use free play credits. Variable return; the pool changes until cutoff.</Text>
+          <Text style={text.body}>Players can’t predict on a dare they join, and predictors can’t join.</Text>
+          <Text style={text.body}>The earliest approved completions win. Sandbox demo: rewards are recorded, not paid out.</Text>
+        </Disclosure>
+      </View>
     </Screen>
   );
 }
 
-function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"campaigns">; lockedSide: Side | null; canPredict: boolean }) {
-  const [side, setSide] = useState<Side>(lockedSide ?? "YES");
+function PredictCard({
+  campaignId,
+  initialSide,
+  lockedSide,
+  canPredict,
+}: {
+  campaignId: Id<"campaigns">;
+  initialSide: Side;
+  lockedSide: Side | null;
+  canPredict: boolean;
+}) {
+  const [side, setSide] = useState<Side>(lockedSide ?? initialSide);
   const [amount, setAmount] = useState("10");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -190,8 +202,8 @@ function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"c
         <Pill label="Play credits" />
       </View>
       <View style={styles.sides}>
-        <Button label="Yes" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => setSide("YES")} style={{ flex: 1 }} />
-        <Button label="No" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => setSide("NO")} style={{ flex: 1 }} />
+        <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => setSide("YES")} style={{ flex: 1 }} />
+        <Button label="Against" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => setSide("NO")} style={{ flex: 1 }} />
       </View>
       <View style={styles.amountBox}>
         <TextInput
@@ -217,13 +229,13 @@ function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"c
       ) : null}
       <ErrorText message={tooLarge ? `Max stake is ${formatCredits(MAX_STAKE_UNITS)}.` : error} />
       <Button
-        label={`Predict ${activeSide === "YES" ? "Yes" : "No"}`}
+        label={`Predict ${activeSide === "YES" ? "For" : "Against"}`}
         onPress={onPlace}
         loading={pending}
         disabled={!validStake || (quote !== undefined && !quote.eligible)}
       />
       <Text style={[text.small, { textAlign: "center" }]}>
-        {lockedSide ? `You’re on ${lockedSide}.` : "Your side locks after one prediction."} Estimates, not odds.
+        {lockedSide ? `You’re ${lockedSide === "YES" ? "For" : "Against"}.` : "Your side locks after one prediction."} Estimates, not odds.
       </Text>
     </Card>
   );
@@ -231,15 +243,10 @@ function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"c
 
 const styles = StyleSheet.create({
   sponsorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sponsor: { flex: 1, color: colors.muted, ...font.callout, fontWeight: "500" },
-  title: { color: colors.text, ...font.largeTitle, fontSize: 30, lineHeight: 36 },
-  block: { gap: 6 },
+  sponsor: { flex: 1, color: colors.muted, ...font.footnote, fontWeight: "500" },
+  title: { color: colors.text, ...font.largeTitle, fontSize: 28, lineHeight: 34 },
   blockTitle: { color: colors.text, ...font.headline },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
-  bar: { flexDirection: "row", height: 8, borderRadius: 4, overflow: "hidden", gap: 3 },
-  barYes: { backgroundColor: colors.positive, borderRadius: 4 },
-  barNo: { backgroundColor: colors.negative, borderRadius: 4 },
-  splitText: { ...font.footnote, fontWeight: "600" },
   sides: { flexDirection: "row", gap: 10 },
   amountBox: {
     flexDirection: "row",
