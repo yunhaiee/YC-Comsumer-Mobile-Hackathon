@@ -23,7 +23,7 @@ export default function ProfileScreen() {
         <EmptyState
           icon="logo"
           title="Join the"
-          accent="dare"
+          accentLogo
           body="Take dares or predict in USD."
           action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
