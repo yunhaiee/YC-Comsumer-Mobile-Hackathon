@@ -7,10 +7,16 @@ import { Avatar, Countdown } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { useNow } from "@/hooks/useNow";
 import { campaignPhase, poolSplit, type CampaignSummary } from "@/lib/campaign";
-import { formatCountdown, formatUsd } from "@/lib/format";
+import { formatUsd } from "@/lib/format";
 import { colors, font, hairline, radius } from "@/lib/theme";
 
 const URGENT_MS = 10 * 60 * 1000;
+
+function formatClock(targetMs: number, nowMs: number) {
+  const total = Math.max(0, Math.floor((targetMs - nowMs) / 1000));
+  const pad = (n: number) => n.toString().padStart(2, "0");
+  return `${pad(Math.floor(total / 3600))}:${pad(Math.floor((total % 3600) / 60))}:${pad(total % 60)}`;
+}
 
 export const sponsorLabel = (name: string) => name.replace(/\s*[—–-]\s*sandbox$/i, "");
 
@@ -18,7 +24,7 @@ export function PhaseCountdown({ campaign }: { campaign: CampaignSummary }) {
   const now = useNow();
   const phase = campaignPhase(campaign, now);
   if (!phase.target) return <Countdown label={phase.label} />;
-  return <Countdown label={formatCountdown(phase.target, now)} tone={phase.target - now < URGENT_MS ? "negative" : "accent"} />;
+  return <Countdown label={formatClock(phase.target, now)} tone={phase.target - now < URGENT_MS ? "negative" : "accent"} />;
 }
 
 export function Prize({ cents, size = 22 }: { cents: number; size?: number }) {

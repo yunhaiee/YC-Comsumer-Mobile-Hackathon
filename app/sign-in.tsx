@@ -1,10 +1,10 @@
 import { useSignInWithUsernamePassword, useSignUpWithUsernamePassword } from "@convex-dev/auth/methods/username-password/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
+import { Image, KeyboardAvoidingView, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { Button, ErrorText, IsoArt, NavHeader } from "@/components/ui";
+import { Button, ErrorText, NavHeader } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { colors, font, radius, space } from "@/lib/theme";
 
@@ -69,7 +69,7 @@ export default function SignInScreen() {
       >
         <NavHeader title={mode === "signIn" ? "Sign in" : "Create account"} />
         <View style={styles.hero}>
-          <IsoArt icon="flash" size={140} />
+          <Image source={require("@/assets/logo-symbol.png")} style={styles.logo} accessibilityLabel="Dare" />
           <Text style={styles.title}>
             {mode === "signIn" ? "Welcome" : "Join the"} <Text style={{ color: colors.accent }}>{mode === "signIn" ? "back" : "dare"}</Text>
           </Text>
@@ -127,6 +127,7 @@ export default function SignInScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: { flexGrow: 1, paddingHorizontal: space.screen, gap: 14, maxWidth: 480, width: "100%", alignSelf: "center" },
+  logo: { width: 72, height: 99, resizeMode: "contain", marginBottom: 8 },
   hero: { alignItems: "center", gap: 6, paddingVertical: 24 },
   title: { color: colors.text, ...font.title, fontSize: 28, marginTop: 8 },
   body: { color: colors.muted, ...font.callout },

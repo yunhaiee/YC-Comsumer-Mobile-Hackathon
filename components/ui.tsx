@@ -219,7 +219,7 @@ export function Avatar({ label, size = 44, tone }: { label: string; size?: numbe
       style={[
         styles.avatar,
         { width: size, height: size, borderRadius: size / 2 },
-        tone === "accent" && { backgroundColor: colors.accentSoft, borderColor: "rgba(139,92,246,0.35)" },
+        tone === "accent" && { backgroundColor: colors.accentSoft, borderColor: "rgba(113,4,230,0.45)" },
       ]}
     >
       <Text style={[styles.avatarText, { fontSize: size * 0.38 }, tone === "accent" && { color: colors.accentText }]}>
@@ -524,10 +524,10 @@ const styles = StyleSheet.create({
   tilePressed: { backgroundColor: colors.surface },
   tileLabel: { color: colors.text, fontSize: 15, fontWeight: "500", letterSpacing: -0.2 },
   isoBadge: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
-  disclosure: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: hairline, borderColor: colors.hairline, overflow: "hidden" },
-  disclosureHead: { flexDirection: "row", alignItems: "center", gap: 12, paddingHorizontal: 16, minHeight: 56 },
+  disclosure: { borderBottomWidth: hairline, borderBottomColor: colors.hairline },
+  disclosureHead: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   disclosureTitle: { flex: 1, color: colors.text, ...font.headline },
-  disclosureBody: { paddingHorizontal: 16, paddingBottom: 16, gap: 10 },
+  disclosureBody: { paddingBottom: 16, gap: 10 },
   countdown: {
     flexDirection: "row",
     alignItems: "center",
@@ -537,7 +537,7 @@ const styles = StyleSheet.create({
     paddingVertical: 6,
     backgroundColor: colors.surfaceRaised,
   },
-  countdownLive: { backgroundColor: colors.accentSoft, borderWidth: hairline, borderColor: "rgba(139,92,246,0.5)" },
+  countdownLive: { backgroundColor: colors.accentSoft, borderWidth: hairline, borderColor: "rgba(113,4,230,0.6)" },
   countdownEnded: { backgroundColor: "rgba(255,69,58,0.85)" },
   countdownText: { fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
   empty: { alignItems: "center", gap: 8, paddingVertical: 32, paddingHorizontal: 12 },

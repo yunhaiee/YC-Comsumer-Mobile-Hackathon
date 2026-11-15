@@ -1,13 +1,13 @@
 import { usePaginatedQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { FlatList, StyleSheet, Text, View } from "react-native";
+import { FlatList, Image, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DareCard } from "@/components/dare";
 import { Chip, EmptyState, IconButton, Loading } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { TAB_BAR_CLEARANCE, colors, font, space } from "@/lib/theme";
+import { TAB_BAR_CLEARANCE, colors, space } from "@/lib/theme";
 
 type Filter = "all" | "live" | "ended";
 
@@ -28,9 +28,7 @@ export default function HomeScreen() {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Text accessibilityRole="header" style={styles.title}>
-              Dares
-            </Text>
+            <Image source={require("@/assets/logo-wordmark.png")} style={styles.logo} accessibilityRole="header" accessibilityLabel="Dare" />
             <IconButton icon="add" label="Create a campaign" onPress={() => router.push("/sponsor/create")} />
           </View>
           <View style={styles.chips}>
@@ -62,6 +60,6 @@ const styles = StyleSheet.create({
   content: { paddingHorizontal: space.screen, gap: 12, maxWidth: 680, width: "100%", alignSelf: "center" },
   header: { gap: 16, marginBottom: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 52 },
-  title: { color: colors.text, ...font.largeTitle },
+  logo: { width: 97, height: 40, resizeMode: "contain" },
   chips: { flexDirection: "row", gap: 8 },
 });

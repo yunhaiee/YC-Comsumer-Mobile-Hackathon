@@ -69,7 +69,7 @@ export default function DareDetailScreen() {
         <PhaseCountdown campaign={campaign} />
       </View>
 
-      <Card>
+      <View style={{ gap: 10 }}>
         <View style={styles.between}>
           <Text style={styles.blockTitle}>Will someone do it?</Text>
           {split ? <Text style={text.small}>{formatUsd(split.total)} in</Text> : null}
@@ -84,7 +84,7 @@ export default function DareDetailScreen() {
             tone={market.position.side === "YES" ? "positive" : "negative"}
           />
         ) : null}
-      </Card>
+      </View>
 
       {!isAuthenticated ? (
         <Button label="Sign in to play" onPress={() => router.push("/sign-in")} />
@@ -131,7 +131,7 @@ export default function DareDetailScreen() {
         </>
       )}
 
-      <View style={{ gap: 10 }}>
+      <View>
         <Disclosure title="Criteria" icon="checkmark-circle-outline">
           <Text style={text.body}>{campaign.description}</Text>
           <Text style={text.body}>{campaign.criteria}</Text>
