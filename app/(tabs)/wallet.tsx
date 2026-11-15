@@ -28,7 +28,7 @@ export default function WalletScreen() {
           icon="wallet"
           title="Your"
           accent="wallet"
-          body="Sandbox USD · test payments only, no real money."
+          body="USD · test payments only, no real money."
           action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
@@ -42,7 +42,7 @@ export default function WalletScreen() {
 
   return (
     <Screen title="Wallet">
-      <BalanceHero label="Sandbox USD" value={formatUsd(me.balanceUnits, true)} caption="Test payments only, no real money" />
+      <BalanceHero label="USD balance" value={formatUsd(me.balanceUnits, true)} caption="Test payments only, no real money" />
       <ActionTiles
         tiles={[
           { icon: "add", label: "Add funds", onPress: () => setAdding(true) },

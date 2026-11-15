@@ -144,7 +144,7 @@ export default function DareDetailScreen() {
         </Disclosure>
         <Disclosure title="How it works" icon="information-circle-outline">
           <Text style={text.body}>For means you think someone completes it; Against means nobody does.</Text>
-          <Text style={text.body}>Predictions use Sandbox USD: test payments only, no real money. Variable return; the pool changes until cutoff.</Text>
+          <Text style={text.body}>Predictions use USD from test payments only; no real money moves. Variable return; the pool changes until cutoff.</Text>
           <Text style={text.body}>Players can’t predict on a dare they join, and predictors can’t join.</Text>
           <Text style={text.body}>The earliest approved completions win. Rewards are recorded, not paid out.</Text>
         </Disclosure>
@@ -199,7 +199,7 @@ function PredictCard({
     <Card style={{ gap: 14 }}>
       <View style={styles.between}>
         <Text style={styles.blockTitle}>Predict</Text>
-        <Pill label="Sandbox USD" />
+        <Pill label="USD" />
       </View>
       <View style={styles.sides}>
         <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => onSideChange("YES")} style={{ flex: 1 }} />

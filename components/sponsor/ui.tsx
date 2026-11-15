@@ -45,7 +45,7 @@ export function SponsorScreen({ children, title, back = "/sponsor" }: PropsWithC
           <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
         </View>
         {children}
-        <Text style={styles.footer}>Rewards recorded, not paid. Predictions use Sandbox USD, test payments only.</Text>
+        <Text style={styles.footer}>Rewards recorded, not paid. Predictions use USD from test payments only.</Text>
       </ScrollView>
     </View>
   );

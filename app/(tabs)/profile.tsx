@@ -24,7 +24,7 @@ export default function ProfileScreen() {
           icon="person"
           title="Join the"
           accent="dare"
-          body="Take dares or predict in Sandbox USD."
+          body="Take dares or predict in USD."
           action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
@@ -77,7 +77,7 @@ export default function ProfileScreen() {
         {signingOut ? <ActivityIndicator color={colors.muted} /> : null}
       </View>
 
-      <Text style={styles.footnote}>Sandbox USD · test payments only, no real money. Rewards are recorded, not paid.</Text>
+      <Text style={styles.footnote}>USD · test payments only, no real money. Rewards are recorded, not paid.</Text>
     </Screen>
   );
 }

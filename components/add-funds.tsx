@@ -62,7 +62,7 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
           <View style={styles.grabber} />
           <Text style={styles.title}>Add funds</Text>
-          <Text style={styles.caption}>Sandbox USD · test payments only, no real money</Text>
+          <Text style={styles.caption}>USD · test payments only, no real money</Text>
           <View style={styles.chips}>
             {PRESETS.map((value) => (
               <Chip key={value} label={formatUsd(value)} selected={preset === value} onPress={() => setPreset(value)} />
