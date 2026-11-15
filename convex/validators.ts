@@ -1,5 +1,11 @@
 import { v } from "convex/values";
 
+export const SANDBOX_MONEY = { currency: "USD", moneyMode: "sandbox" } as const;
+export const sandboxMoney = v.object({
+  currency: v.literal(SANDBOX_MONEY.currency),
+  moneyMode: v.literal(SANDBOX_MONEY.moneyMode),
+});
+
 export const side = v.union(v.literal("YES"), v.literal("NO"));
 export const outcome = v.union(side, v.literal("VOID"));
 export const state = v.union(

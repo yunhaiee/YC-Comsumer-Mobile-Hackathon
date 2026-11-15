@@ -119,6 +119,68 @@ describe("DARE secured backend", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
+  it("adds sandboxUSD metadata without renaming or rescaling stored units", async () => {
+    const { t, campaignId, now } = await fixture();
+    const alice = (await signUp(t, "alice")).client;
+    const metadata = { currency: "USD", moneyMode: "sandbox" };
+    const profile = await alice.query(api.profiles.me, {});
+    expect(profile).toMatchObject({ ...metadata, balanceUnits: 100000 });
+    const before = await t.run((ctx) => ctx.db.get("users", profile!.id));
+    const quote = await alice.query(api.predictions.quote, {
+      campaignId,
+      side: "YES",
+      stakeUnits: 2500,
+    });
+    expect(quote).toMatchObject({
+      ...metadata,
+      stakeUnits: 2500,
+      estimatedGrossPayoutUnits: 2500,
+      estimatedNetProfitUnits: 0,
+      maximumLossUnits: 2500,
+    });
+    expect(quote.label).toContain("Sandbox USD (demo dollars), not real money");
+    expect(quote.label).toContain("100 units = $1 demo");
+    expect(await t.run((ctx) => ctx.db.get("users", profile!.id))).toEqual(
+      before,
+    );
+    const args = {
+      campaignId,
+      side: "YES" as const,
+      stakeUnits: 2500,
+      requestId: "sandbox_usd1",
+    };
+    const placed = await alice.mutation(api.predictions.place, args);
+    expect(placed).toMatchObject({ ...metadata, balanceUnits: 97500 });
+    expect(await alice.mutation(api.predictions.place, args)).toEqual(placed);
+    expect(
+      await alice.query(api.predictions.getMarket, { campaignId }),
+    ).toMatchObject({
+      ...metadata,
+      yesStakeUnits: 2500,
+      noStakeUnits: 0,
+      position: { stakeUnits: 2500 },
+    });
+    await expect(
+      alice.mutation(api.predictions.place, {
+        ...args,
+        stakeUnits: 100000,
+        requestId: "sandbox_usd2",
+      }),
+    ).rejects.toThrow("Insufficient sandbox USD (demo dollars)");
+    vi.setSystemTime(now + 360_000);
+    await t.mutation(internal.settlement.resolve, { campaignId });
+    expect(await alice.query(api.profiles.me, {})).toMatchObject({
+      ...metadata,
+      balanceUnits: 100000,
+    });
+    const ledger = await t.run((ctx) =>
+      ctx.db
+        .query("ledger")
+        .withIndex("by_userId", (q) => q.eq("userId", profile!.id))
+        .take(10),
+    );
+    expect(ledger.map((row) => row.deltaUnits)).toEqual([100000, -2500, 2500]);
+  });
   it("uses real Auth v2 sessions and grants once without signup elevation", async () => {
     const t = setup(),
       alice = await signUp(t, "alice");
