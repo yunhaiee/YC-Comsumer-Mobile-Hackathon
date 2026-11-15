@@ -114,9 +114,9 @@ export default function DareDetailScreen() {
           ) : null}
           {viewer.canPredict || viewer.role === "predictor" ? (
             <PredictCard
-              key={pickedSide}
               campaignId={campaignId}
-              initialSide={pickedSide}
+              side={pickedSide}
+              onSideChange={setPickedSide}
               lockedSide={market?.position?.side ?? null}
               canPredict={viewer.canPredict}
             />
@@ -155,16 +155,17 @@ export default function DareDetailScreen() {
 
 function PredictCard({
   campaignId,
-  initialSide,
+  side,
+  onSideChange,
   lockedSide,
   canPredict,
 }: {
   campaignId: Id<"campaigns">;
-  initialSide: Side;
+  side: Side;
+  onSideChange: (side: Side) => void;
   lockedSide: Side | null;
   canPredict: boolean;
 }) {
-  const [side, setSide] = useState<Side>(lockedSide ?? initialSide);
   const [amount, setAmount] = useState("10");
   const [pending, setPending] = useState(false);
   const [error, setError] = useState<string | null>(null);
@@ -201,8 +202,8 @@ function PredictCard({
         <Pill label="Play credits" />
       </View>
       <View style={styles.sides}>
-        <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => setSide("YES")} style={{ flex: 1 }} />
-        <Button label="Against" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => setSide("NO")} style={{ flex: 1 }} />
+        <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => onSideChange("YES")} style={{ flex: 1 }} />
+        <Button label="Against" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => onSideChange("NO")} style={{ flex: 1 }} />
       </View>
       <View style={styles.amountBox}>
         <TextInput
