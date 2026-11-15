@@ -80,8 +80,18 @@ export const create = action({
         error.statusCode! <= 599
           ? error.statusCode!
           : null;
-      const category =
-        error instanceof WhopTimeoutError
+      const body = error instanceof WhopError ? error.body : null;
+      const providerError =
+        body && typeof body === "object" && "error" in body ? body.error : null;
+      const idempotencyConflict =
+        status === 400 &&
+        providerError !== null &&
+        typeof providerError === "object" &&
+        "code" in providerError &&
+        providerError.code === "idempotency_key_mismatch";
+      const category = idempotencyConflict
+        ? "idempotency_conflict"
+        : error instanceof WhopTimeoutError
           ? "timeout"
           : status === 400 || status === 422
             ? "invalid_request"
@@ -93,6 +103,11 @@ export const create = action({
                   ? "provider_unavailable"
                   : "checkout_failed";
       console.error("Whop sandbox checkout failed", { status, category });
+      if (idempotencyConflict) {
+        throw new ConvexError(
+          "Checkout configuration changed since the first attempt. Create a new campaign.",
+        );
+      }
       throw new ConvexError(
         "Whop sandbox checkout is unavailable. Your campaign is not activated. Please try again.",
       );
