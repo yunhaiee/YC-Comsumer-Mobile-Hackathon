@@ -2,14 +2,14 @@
 
 ## Status
 
-Foundation only. YL (YCCO-3) and TK (YCCO-5) have agreed on the consumer function names and the upload-ticket boundary below; these APIs are not implemented yet. TK confirmed the prediction/review policies and sponsor-configured winner counts in YCCO-5. YL's foundation merge approval is still required. SF's current YCCO-4 thread is explicitly Revyl-only: Whop and sponsor-screen ownership must be assigned separately before that module starts. Do not mistake documentation for working integration.
+Foundation merged as PR #1 at bd46a66. YL (YCCO-3) and TK (YCCO-5) have agreed on the consumer function names and the upload-ticket boundary below; implementation is underway. TK confirmed the prediction/review policies and sponsor-configured winner counts. YL approved username/password auth and Whop delegation. SF (YCCO-4) now owns sponsor UI plus Revyl; YL's Subagent 1 owns only convex/whop/ and its tests. Do not mistake documentation for working integration.
 
 ## Confirmed product decisions
 
 - Companies sponsor short-term challenges with a fixed performer prize. Company sponsorship is the central experience, not a friends-only game.
 - Users participate or predict YES/NO. YES means at least one eligible participant completes the campaign's exact criteria by the deadline; NO means nobody does.
 - Prediction activity changes prediction economics, never the fixed performer prize.
-- Predictions use free simulated credits only. No credit purchases, cash conversion, wagering deposits, withdrawals, or real-money betting.
+- Predictions use Sandbox USD. Users fund their balance through Whop sandbox checkout deposits (test cards only), credited solely by the verified webhook. No real money, withdrawals, or cash-out; winnings stay as in-app sandbox balance.
 - Evidence is uploaded video; the company reviews it. No livestreaming or AI verification.
 - Evidence is due by the dare deadline. TK confirmed a separate 24-hour company review window after that deadline. Settle only after all timely evidence is reviewed; unresolved campaigns void and refund at review timeout, never resolve NO merely because evidence is unreviewed.
 - Once a user predicts on a campaign, they cannot switch into participating in that campaign.
@@ -22,8 +22,8 @@ Foundation only. YL (YCCO-3) and TK (YCCO-5) have agreed on the consumer functio
 
 ## Recommended, not yet confirmed
 
-1. Three authenticated demo accounts with real server-side participant/sponsor permissions. Recommended implementation is Convex Auth v2 username/password with native SecureStore persistence, pending YL approval. No client-side role selector or caller-supplied user ID as authorization. Do not mix Convex Auth v1 key-generation instructions with v2 component APIs.
-2. Whop sandbox hosted checkout activates a sponsored campaign only after a verified webhook. Prize allocations are represented rewards, not escrow or completed payouts. Whop sandbox payouts are unavailable. Payment-module ownership and the final checkout interface await assignment.
+1. Three authenticated demo accounts with real server-side participant/sponsor permissions. Approved implementation is Convex Auth v2 username/password with native SecureStore persistence. No client-side role selector or caller-supplied user ID as authorization. Do not mix Convex Auth v1 key-generation instructions with v2 component APIs.
+2. Whop sandbox hosted checkout activates a sponsored campaign only after a verified webhook. Prize allocations are represented rewards, not escrow or completed payouts. Whop sandbox payouts are unavailable. Zero platform fee for the MVP; sponsor commitment is winnerCount × rewardUsdCents.
 3. Primary physical demo phone platform, sandbox campaign pricing/platform fee, approved challenge templates, and evidence size/duration limits remain to be confirmed.
 
 ## File ownership
@@ -32,9 +32,10 @@ Foundation only. YL (YCCO-3) and TK (YCCO-5) have agreed on the consumer functio
 | --- | --- | --- |
 | YL (integration) | `package.json`, lockfile, root configs, `app/_layout.tsx`, consumer `app/` routes, `providers/`, `lib/theme.ts`, shared `components/`, docs and CI | Backend/auth API changes from TK; sponsor/payment behavior from SF |
 | TK (backend) | `convex/` except `convex/whop/`, generated Convex types, backend tests | Dependencies and client providers from YL; payment handler from SF |
-| SF (sponsorship/QA) | `app/sponsor/`, `components/sponsor/`, `convex/whop/`, `.revyl/`, `tests/revyl/` | Schema and HTTP route registration from TK; dependency/config/navigation edits from YL |
+| SF (sponsor UI/QA) | `app/sponsor/`, `components/sponsor/`, `.revyl/`, `tests/revyl/` | Schema/review APIs from TK; checkout API from Subagent 1; dependency/config/navigation edits from YL |
+| YL Subagent 1 (Whop) | `convex/whop/` including payment tests | Schema and HTTP registration from TK; dependencies from YL |
 
-The SF row is the original allocation, not permission to expand YCCO-4. That thread currently owns only Revyl; sponsor/payment paths remain reserved pending YL's ownership decision.
+There is one writer per path: SF does not edit `convex/whop/`, and Subagent 1 does not edit sponsor UI.
 
 The foundation creates the initial empty schema before TK takes ownership. Nobody edits another owner's files without coordination. Only TK runs the shared Convex deployment watcher; SF hands over its module via PR. Do not deploy an older schema from a parallel branch. Share schema/API changes before implementing their consumers. Small module PRs integrate through YL, not simultaneous pushes to a shared branch.
 
@@ -57,7 +58,7 @@ YL registers shared navigation; SF adds only sponsor routes. Root `app/` is deli
 
 ## Shared types and conventions
 
-Use generated Convex `Id<"campaigns">`, `Id<"submissions">`, and `Id<"_storage">`; do not hand-write generated code. Prices/reward allocations use integer USD cents. Play credits use integer minor units (100 units = 1 displayed credit), independently named and stored. Timestamps are UTC epoch milliseconds and enforced by server time. Derive actor identity from authenticated context, not arguments. Validate every input.
+Use generated Convex `Id<"campaigns">`, `Id<"submissions">`, and `Id<"_storage">`; do not hand-write generated code. Prices/reward allocations use integer USD cents. Prediction balances, stakes, and payouts use integer minor units equal to Sandbox USD cents (100 units = $1.00); field names keep the `Units` suffix. Timestamps are UTC epoch milliseconds and enforced by server time. Derive actor identity from authenticated context, not arguments. Validate every input.
 
 Campaign queries should return: `id`, `title`, `description`, `sponsorName`, `mediaUrl` (nullable), `criteria`, `winnerCount`, `rewardUsdCents` (per winner), `predictionClosesAt`, `attemptStartsAt`, `deadlineAt`, `reviewDeadlineAt`, `state`, `participantCount`, and `outcome` (null/YES/NO/VOID). Viewer-specific eligibility is separate from public campaign fields. Public queries must not expose raw payment payloads or private evidence.
 
@@ -89,7 +90,7 @@ The upload is complete only when `submissions.submit` validates and records it b
 | `submissions.listForReview` | TK query | Sponsor-authorized campaign evidence with playable URLs |
 | `submissions.review` | TK mutation | `{ submissionId, decision, reason, requestId }`; records authorized approval/rejection |
 | `whop/checkout.create` | SF action | `{ campaignId }`; returns sandbox checkout URL for server-authoritative price |
-| `payments.activateCampaign` | TK internal mutation | `{ campaignId, providerPaymentId, providerEventId, amountUsdCents, currency: "USD", sandbox: true }`; validates frozen checkout terms and payment uniqueness, activates once |
+| `payments.activateCampaign` | TK internal mutation | `{ campaignId, providerCheckoutId, providerPaymentId, providerEventId, amountUsdCents, currency: "USD", sandbox: true }`; validates frozen checkout binding/terms and payment uniqueness, activates once |
 | `/whop/webhook` | TK route, SF handler | Raw-body signature verification, event deduplication, then internal activation |
 | `settlement.resolve` | TK internal mutation | Validated outcome, audited settlement/refund once; never exposed directly to clients |
 

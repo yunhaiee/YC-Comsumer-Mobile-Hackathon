@@ -7,15 +7,15 @@ import { AppProviders } from "@/providers/AppProviders";
 
 export default function RootLayout() {
   return (
-    <SafeAreaProvider>
+    <SafeAreaProvider style={{ backgroundColor: colors.background }}>
+      <StatusBar style="light" />
       <AppProviders>
-        <StatusBar style="light" />
-        <Stack
-          screenOptions={{
-            headerShown: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
+          <Stack.Screen name="dare/[id]/index" />
+          <Stack.Screen name="dare/[id]/submit" />
+        </Stack>
       </AppProviders>
     </SafeAreaProvider>
   );

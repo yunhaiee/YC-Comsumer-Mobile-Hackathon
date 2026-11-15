@@ -14,7 +14,7 @@
     "android": {
       "package": "com.dare.hackathon",
       "adaptiveIcon": {
-        "backgroundColor": "#E6F4FE",
+        "backgroundColor": "#7104E6",
         "foregroundImage": "./assets/android-icon-foreground.png",
         "backgroundImage": "./assets/android-icon-background.png",
         "monochromeImage": "./assets/android-icon-monochrome.png"
@@ -26,7 +26,18 @@
       "bundler": "metro"
     },
     "plugins": [
-      "expo-router"
+      "expo-router",
+      "expo-secure-store",
+      "expo-video",
+      "expo-web-browser",
+      [
+        "expo-image-picker",
+        {
+          "photosPermission": "DARE uses your selected video as evidence for a sponsored challenge.",
+          "cameraPermission": "DARE uses your camera to record challenge evidence.",
+          "microphonePermission": "DARE records audio with your challenge evidence."
+        }
+      ]
     ],
     "experiments": {
       "typedRoutes": true

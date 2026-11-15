@@ -3,12 +3,20 @@
   "version": "1.0.0",
   "main": "expo-router/entry",
   "dependencies": {
+    "@convex-dev/auth": "2.0.0",
+    "@expo/vector-icons": "^15.0.2",
+    "@whop/sdk": "^2.8.1",
     "convex": "^1.50.0",
     "expo": "~58.0.25",
     "expo-constants": "~58.0.16",
+    "expo-image-picker": "~58.0.10",
+    "expo-linear-gradient": "~58.0.4",
     "expo-linking": "~58.0.17",
     "expo-router": "~58.0.31",
+    "expo-secure-store": "~58.0.3",
     "expo-status-bar": "~58.0.5",
+    "expo-video": "~58.0.14",
+    "expo-web-browser": "~58.0.8",
     "react": "19.3.0",
     "react-dom": "19.3.0",
     "react-native": "0.88.1",
@@ -17,10 +25,13 @@
     "react-native-web": "^0.21.4"
   },
   "devDependencies": {
+    "@edge-runtime/vm": "5.0.0",
     "@types/react": "~19.3.0",
+    "convex-test": "0.0.71",
     "eslint": "^9.39.5",
     "eslint-config-expo": "~58.0.4",
-    "typescript": "~6.0.3"
+    "typescript": "~6.0.3",
+    "vitest": "5.1.0"
   },
   "scripts": {
     "start": "expo start",
@@ -29,6 +40,7 @@
     "web": "expo start --web",
     "typecheck": "tsc --noEmit",
     "lint": "expo lint",
+    "test": "vitest run --environment edge-runtime",
     "export:web": "expo export --platform web",
     "convex:dev": "convex dev",
     "convex:ai": "convex ai-files install"
