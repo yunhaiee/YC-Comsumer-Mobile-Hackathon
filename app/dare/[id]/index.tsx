@@ -13,6 +13,8 @@ import { colors, radius } from "@/lib/theme";
 
 type Side = "YES" | "NO";
 
+const MAX_STAKE_UNITS = 1_000_000;
+
 export default function DareDetailScreen() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const campaignId = id as Id<"campaigns">;
@@ -166,7 +168,9 @@ function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"c
   const activeSide = lockedSide ?? side;
   const credits = Number(amount);
   const stakeUnits = Number.isFinite(credits) && credits > 0 ? Math.round(credits * UNITS_PER_CREDIT) : 0;
-  const quote = useQuery(api.predictions.quote, stakeUnits > 0 && canPredict ? { campaignId, side: activeSide, stakeUnits } : "skip");
+  const tooLarge = stakeUnits > MAX_STAKE_UNITS;
+  const validStake = stakeUnits > 0 && !tooLarge;
+  const quote = useQuery(api.predictions.quote, validStake && canPredict ? { campaignId, side: activeSide, stakeUnits } : "skip");
 
   const onPlace = async () => {
     setError(null);
@@ -218,13 +222,13 @@ function PredictCard({ campaignId, lockedSide, canPredict }: { campaignId: Id<"c
           <Text style={text.small}>{quote.label}</Text>
         </View>
       ) : null}
-      <ErrorText message={error} />
+      <ErrorText message={tooLarge ? `Maximum stake is ${formatCredits(MAX_STAKE_UNITS)}.` : error} />
       <Button
         label={`Predict ${activeSide}`}
         variant={activeSide === "YES" ? "yes" : "no"}
         onPress={onPlace}
         loading={pending}
-        disabled={stakeUnits <= 0 || (quote !== undefined && !quote.eligible)}
+        disabled={!validStake || (quote !== undefined && !quote.eligible)}
       />
     </Card>
   );

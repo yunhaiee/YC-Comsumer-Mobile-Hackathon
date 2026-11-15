@@ -1,7 +1,7 @@
 import { useAuthToken } from "@convex-dev/auth/react";
-import { useMutation, useQuery } from "convex/react";
+import { useConvexAuth, useMutation, useQuery } from "convex/react";
 import * as ImagePicker from "expo-image-picker";
-import { useLocalSearchParams } from "expo-router";
+import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useState } from "react";
 import { ScrollView, StyleSheet, Text, View } from "react-native";
@@ -31,8 +31,9 @@ export default function SubmitEvidenceScreen() {
   const campaignId = id as Id<"campaigns">;
   const now = useNow();
   const token = useAuthToken();
+  const { isAuthenticated, isLoading: authLoading } = useConvexAuth();
   const campaign = useQuery(api.campaigns.get, { campaignId });
-  const mine = useQuery(api.submissions.mine, { campaignId });
+  const mine = useQuery(api.submissions.mine, isAuthenticated ? { campaignId } : "skip");
   const generateUploadUrl = useMutation(api.submissions.generateUploadUrl);
   const submit = useMutation(api.submissions.submit);
   const [picked, setPicked] = useState<Picked | null>(null);
@@ -40,8 +41,16 @@ export default function SubmitEvidenceScreen() {
   const [error, setError] = useState<string | null>(null);
   const [done, setDone] = useState(false);
 
-  if (campaign === undefined) return <Loading />;
+  if (authLoading || campaign === undefined) return <Loading />;
   if (campaign === null) return <CenterMessage title="Dare not found" />;
+  if (!isAuthenticated)
+    return (
+      <CenterMessage
+        title="Sign in to submit evidence"
+        body="Only participants can upload evidence for this dare."
+        action={<Button label="Sign in" onPress={() => router.push("/sign-in")} />}
+      />
+    );
 
   const choose = async (source: "camera" | "library") => {
     setError(null);
