@@ -10,7 +10,7 @@ import { sandboxCheckoutUrl } from "./validation";
 export const create = action({
   args: { campaignId: v.id("campaigns") },
   returns: v.object({ checkoutUrl: v.string(), sandbox: v.literal(true) }),
-  handler: async (ctx, { campaignId }) => {
+  handler: async (ctx, { campaignId }): Promise<{ checkoutUrl: string; sandbox: true }> => {
     const terms = await ctx.runQuery(internal.payments.getCheckoutTerms, { campaignId });
     if (terms.state !== "draft" && terms.state !== "awaiting_payment") {
       throw new ConvexError("This campaign no longer needs checkout.");

@@ -90,7 +90,6 @@ export function validatePayment(
   const amount = usdCents(payment.total);
   if (
     amount !== binding.amountUsdCents ||
-    usdCents(payment.subtotal) !== binding.amountUsdCents ||
     (payment.refunded_amount != null && usdCents(payment.refunded_amount) !== 0)
   ) {
     throw new InvalidPayment("Payment amount does not match frozen campaign terms");
