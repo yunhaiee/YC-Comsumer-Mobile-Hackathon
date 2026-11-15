@@ -51,6 +51,7 @@ export default defineSchema({
     providerCheckoutId: v.optional(v.string()),
     providerVariantId: v.optional(v.string()),
     checkoutUrl: v.optional(v.string()),
+    paymentIssue: v.optional(v.literal("late_payment_refund_required")),
   })
     .index("by_published", ["published"])
     .index("by_sponsorId", ["sponsorId"])
@@ -139,6 +140,9 @@ export default defineSchema({
     currency: v.literal("USD"),
     sandbox: v.literal(true),
     receivedAt: v.number(),
+    disposition: v.optional(
+      v.union(v.literal("activated"), v.literal("refund_required")),
+    ),
   })
     .index("by_campaignId", ["campaignId"])
     .index("by_providerPaymentId", ["providerPaymentId"]),

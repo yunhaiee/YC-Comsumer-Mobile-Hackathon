@@ -74,6 +74,7 @@ export function summary(c: Doc<"campaigns">) {
     pendingCount: c.pendingCount,
   };
   return {
+    paymentIssue: c.paymentIssue ?? null,
     ...counts,
     id: c._id,
     title: c.title,

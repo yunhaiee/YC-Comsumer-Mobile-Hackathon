@@ -105,11 +105,19 @@ export const activateCampaign = internalMutation({
     currency: v.literal("USD"),
     sandbox: v.literal(true),
   },
-  returns: v.object({
-    campaignId: v.id("campaigns"),
-    paymentId: v.id("payments"),
-    state: v.literal("prediction_open"),
-  }),
+  returns: v.union(
+    v.object({
+      campaignId: v.id("campaigns"),
+      paymentId: v.id("payments"),
+      state: v.literal("prediction_open"),
+    }),
+    v.object({
+      campaignId: v.id("campaigns"),
+      paymentId: v.id("payments"),
+      state: v.literal("void"),
+      disposition: v.literal("refund_required"),
+    }),
+  ),
   handler: async (ctx, args) => {
     integer(args.amountUsdCents, 1, 2_000_000, "payment amount");
     if (
@@ -150,6 +158,14 @@ export const activateCampaign = internalMutation({
           providerEventId: args.providerEventId,
           paymentId: prior._id,
         });
+      if (prior.disposition === "refund_required") {
+        return {
+          campaignId: c._id,
+          paymentId: prior._id,
+          state: "void" as const,
+          disposition: "refund_required" as const,
+        };
+      }
       return {
         campaignId: c._id,
         paymentId: prior._id,
@@ -159,7 +175,8 @@ export const activateCampaign = internalMutation({
     if (
       event ||
       c.state !== "awaiting_payment" ||
-      Date.now() >= c.predictionClosesAt
+      c.published ||
+      c.outcome !== null
     )
       fail("Campaign cannot activate");
     if (
@@ -169,12 +186,56 @@ export const activateCampaign = internalMutation({
         .unique()
     )
       fail("Campaign already paid");
+    const late = Date.now() >= c.predictionClosesAt;
+    if (late) {
+      const participant = await ctx.db
+        .query("participations")
+        .withIndex("by_campaignId_and_userId", (q) => q.eq("campaignId", c._id))
+        .take(1);
+      const position = await ctx.db
+        .query("positions")
+        .withIndex("by_campaignId_and_userId", (q) => q.eq("campaignId", c._id))
+        .take(1);
+      const submission = await ctx.db
+        .query("submissions")
+        .withIndex("by_campaignId_and_userId", (q) => q.eq("campaignId", c._id))
+        .take(1);
+      if (
+        c.participantCount !== 0 ||
+        c.positionCount !== 0 ||
+        c.submissionCount !== 0 ||
+        c.pendingCount !== 0 ||
+        c.yesStakeUnits !== 0 ||
+        c.noStakeUnits !== 0 ||
+        participant.length ||
+        position.length ||
+        submission.length
+      )
+        fail("Unpublished campaign activity invariant failed");
+    }
     const { providerEventId, ...payment } = args;
     const paymentId = await ctx.db.insert("payments", {
       ...payment,
       receivedAt: Date.now(),
+      disposition: late ? "refund_required" : "activated",
     });
     await ctx.db.insert("paymentEvents", { providerEventId, paymentId });
+    if (late) {
+      await ctx.db.patch("campaigns", c._id, {
+        state: "void",
+        outcome: "VOID",
+        published: false,
+        predictionClosed: true,
+        joinsClosed: true,
+        paymentIssue: "late_payment_refund_required",
+      });
+      return {
+        campaignId: c._id,
+        paymentId,
+        state: "void" as const,
+        disposition: "refund_required" as const,
+      };
+    }
     await ctx.db.patch("campaigns", c._id, {
       state: "prediction_open",
       published: true,

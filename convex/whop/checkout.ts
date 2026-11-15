@@ -21,9 +21,9 @@ export const create = action({
     if (terms.state !== "draft" && terms.state !== "awaiting_payment") {
       throw new ConvexError("This campaign no longer needs checkout.");
     }
-    if (Date.now() >= terms.predictionClosesAt) {
+    if (terms.predictionClosesAt <= Date.now() + 120_000) {
       throw new ConvexError(
-        "The payment deadline has passed. Create a new campaign.",
+        "Not enough time to complete payment. Create a campaign with a later prediction cutoff.",
       );
     }
     if (terms.checkoutUrl) {
