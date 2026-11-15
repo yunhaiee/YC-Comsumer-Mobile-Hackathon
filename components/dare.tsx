@@ -67,25 +67,28 @@ export function DareCard({ campaign }: { campaign: CampaignSummary }) {
   const open = (side?: "YES" | "NO") =>
     router.push({ pathname: "/dare/[id]", params: side ? { id: campaign.id, side } : { id: campaign.id } });
   const predictionsOpen = !campaign.outcome && now < campaign.predictionClosesAt;
+  const sponsor = sponsorLabel(campaign.sponsorName);
   return (
     <Pressable
       accessibilityRole="button"
       accessibilityLabel={campaign.title}
       onPress={() => open()}
-      style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
+      style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
     >
-      <View style={styles.sponsorRow}>
-        <Avatar label={sponsorLabel(campaign.sponsorName)} size={22} />
-        <Text style={styles.sponsor} numberOfLines={1}>
-          {sponsorLabel(campaign.sponsorName)}
-        </Text>
-      </View>
-      <Text style={styles.title} numberOfLines={2}>
-        {campaign.title}
-      </Text>
-      <View style={styles.bottom}>
-        <Prize cents={campaign.rewardUsdCents} />
-        <PhaseCountdown campaign={campaign} />
+      <View style={styles.rowMain}>
+        <Avatar label={sponsor} size={44} />
+        <View style={styles.rowText}>
+          <Text style={styles.title} numberOfLines={2}>
+            {campaign.title}
+          </Text>
+          <Text style={styles.sponsor} numberOfLines={1}>
+            {sponsor}
+          </Text>
+        </View>
+        <View style={styles.rowRight}>
+          <Text style={styles.prizeText}>{formatUsd(campaign.rewardUsdCents)}</Text>
+          <PhaseCountdown campaign={campaign} />
+        </View>
       </View>
       {predictionsOpen ? <ForAgainst campaign={campaign} onPick={open} /> : null}
     </Pressable>
@@ -93,13 +96,14 @@ export function DareCard({ campaign }: { campaign: CampaignSummary }) {
 }
 
 const styles = StyleSheet.create({
-  card: { backgroundColor: colors.surface, borderRadius: radius.lg, borderWidth: hairline, borderColor: colors.hairline, padding: 16, gap: 10 },
-  sponsorRow: { flexDirection: "row", alignItems: "center", gap: 8 },
-  sponsor: { flex: 1, color: colors.muted, ...font.footnote, fontWeight: "500" },
-  title: { color: colors.text, fontSize: 20, fontWeight: "700", letterSpacing: -0.3 },
-  bottom: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", gap: 8, marginTop: 2 },
+  row: { paddingVertical: 14, gap: 12, borderBottomWidth: hairline, borderBottomColor: colors.hairline },
+  rowMain: { flexDirection: "row", alignItems: "center", gap: 14 },
+  rowText: { flex: 1, gap: 2 },
+  rowRight: { alignItems: "flex-end", gap: 6 },
+  sponsor: { color: colors.muted, ...font.footnote },
+  title: { color: colors.text, ...font.headline },
   prize: { flexDirection: "row", alignItems: "center", gap: 6 },
-  prizeText: { color: colors.text, fontWeight: "700", letterSpacing: -0.4 },
+  prizeText: { color: colors.text, fontSize: 20, fontWeight: "700", letterSpacing: -0.4 },
   sides: { flexDirection: "row", gap: 8 },
   side: { flex: 1, flexDirection: "row", alignItems: "center", justifyContent: "space-between", borderRadius: radius.sm, paddingHorizontal: 14, minHeight: 44 },
   sideLabel: { ...font.headline },

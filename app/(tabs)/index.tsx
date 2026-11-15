@@ -57,7 +57,7 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: space.screen, gap: 12, maxWidth: 680, width: "100%", alignSelf: "center" },
+  content: { paddingHorizontal: space.screen, gap: 0, maxWidth: 680, width: "100%", alignSelf: "center" },
   header: { gap: 16, marginBottom: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 52 },
   logo: { width: 97, height: 40, resizeMode: "contain" },
