@@ -1,9 +1,10 @@
+import { useAuthToken } from "@convex-dev/auth/react";
 import { useAction, useMutation, useQuery } from "convex/react";
 import { useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { openBrowserAsync } from "expo-web-browser";
-import { useRef, useState } from "react";
-import { Text, View } from "react-native";
+import { useEffect, useRef, useState } from "react";
+import { Platform, Text, View } from "react-native";
 
 import { Button, Card, Field, Loading, Notice, SponsorScreen, Status, errorText, money, newRequestId, styles, when } from "@/components/sponsor/ui";
 import { api } from "@/convex/_generated/api";
@@ -163,6 +164,39 @@ function Submission({ submission, canReview }: { submission: Evidence; canReview
 }
 
 function Player({ uri }: { uri: string }) {
-  const player = useVideoPlayer(uri);
+  const token = useAuthToken();
+  const [webUri, setWebUri] = useState<string | null>(null);
+  const [failed, setFailed] = useState(false);
+
+  useEffect(() => {
+    if (Platform.OS !== "web" || !token) return;
+    let objectUrl: string | null = null;
+    let cancelled = false;
+    fetch(uri, { headers: { Authorization: `Bearer ${token}` } })
+      .then((response) => {
+        if (!response.ok) throw new Error(String(response.status));
+        return response.blob();
+      })
+      .then((blob) => {
+        if (cancelled) return;
+        objectUrl = URL.createObjectURL(blob);
+        setWebUri(objectUrl);
+      })
+      .catch(() => {
+        if (!cancelled) setFailed(true);
+      });
+    return () => {
+      cancelled = true;
+      if (objectUrl) URL.revokeObjectURL(objectUrl);
+    };
+  }, [uri, token]);
+
+  if (!token || failed) return <Notice error>Video unavailable. Sign in again and retry.</Notice>;
+  if (Platform.OS === "web") return webUri ? <VideoSurface source={{ uri: webUri }} /> : <Loading>Loading video…</Loading>;
+  return <VideoSurface source={{ uri, headers: { Authorization: `Bearer ${token}` } }} />;
+}
+
+function VideoSurface({ source }: { source: { uri: string; headers?: Record<string, string> } }) {
+  const player = useVideoPlayer(source);
   return <VideoView player={player} nativeControls contentFit="contain" style={{ width: "100%", aspectRatio: 9 / 16, maxHeight: 520, borderRadius: 16, backgroundColor: "#000" }} />;
 }
