@@ -33,7 +33,6 @@ type Env = {
   readonly WHOP_ACCOUNT_ID: string | undefined;
   readonly WHOP_API_KEY: string | undefined;
   readonly WHOP_CHECKOUT_RETURN_URL: string | undefined;
-  readonly WHOP_PRODUCT_ID: string | undefined;
   readonly WHOP_WEBHOOK_SECRET: string | undefined;
 };
 

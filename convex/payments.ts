@@ -7,6 +7,7 @@ import { checkoutTerms } from "./validators";
 
 function terms(c: Doc<"campaigns">) {
   return {
+    predictionClosesAt: c.predictionClosesAt,
     campaignId: c._id,
     sponsorId: c.sponsorId,
     amountUsdCents: c.amountUsdCents,
@@ -57,7 +58,11 @@ export const recordCheckout = internalMutation({
     const url = new URL(args.checkoutUrl);
     if (
       url.protocol !== "https:" ||
-      !(url.hostname === "whop.com" || url.hostname.endsWith(".whop.com"))
+      url.hostname !== "sandbox.whop.com" ||
+      url.username ||
+      url.password ||
+      url.port ||
+      !url.pathname.startsWith("/checkout/")
     )
       fail("Invalid checkout URL");
     const other = await ctx.db
