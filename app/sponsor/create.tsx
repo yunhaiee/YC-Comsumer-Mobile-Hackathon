@@ -7,6 +7,7 @@ import { Button, Card, Field, Loading, Notice, SponsorScreen, errorText, money, 
 import { api } from "@/convex/_generated/api";
 
 const MINUTE = 60_000;
+const LATENCY_MARGIN = MINUTE;
 
 export default function CreateCampaign() {
   const config = useQuery(api.campaigns.templates, {});
@@ -39,8 +40,8 @@ export default function CreateCampaign() {
     ? `Winners must be a whole number from ${limits.minWinnerCount} to ${limits.maxWinnerCount}.`
     : !Number.isFinite(rewardUsdCents) || rewardUsdCents < limits.minRewardUsdCents || rewardUsdCents > limits.maxRewardUsdCents
       ? `Reward per winner must be ${money(limits.minRewardUsdCents)} to ${money(limits.maxRewardUsdCents)}.`
-      : !(cutoff >= limits.minLeadMs)
-        ? "Predictions must stay open for at least one minute."
+      : !(cutoff >= limits.minLeadMs + LATENCY_MARGIN)
+        ? "Predictions must stay open for at least two minutes."
         : !(start >= cutoff && start <= limits.maxStartLeadMs)
           ? "Attempts must start at or after the prediction cutoff, within 30 days."
           : !(duration >= limits.minAttemptDurationMs && start + duration <= limits.maxDeadlineLeadMs)
