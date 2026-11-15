@@ -24,6 +24,7 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   const [notice, setNotice] = useState<string | null>(null);
   const [request, setRequest] = useState<{ cents: number; id: string; completedBefore: number } | null>(null);
   const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
+  const [browsing, setBrowsing] = useState(false);
 
   const cents = preset === "custom" ? Math.round(Number(custom) * 100) : preset;
   const valid = Number.isFinite(cents) && cents >= MIN_CENTS && cents <= MAX_CENTS;
@@ -31,11 +32,15 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   const completedCount = (amount: number) =>
     me?.deposits.filter((d) => d.status === "completed" && d.amountUsdCents === amount).length ?? 0;
 
-  const close = () => {
+  const reset = () => {
     setError(null);
     setNotice(null);
     setRequest(null);
     setCheckoutUrl(null);
+  };
+
+  const close = () => {
+    if (browsing) return;
     onClose();
   };
 
@@ -44,10 +49,10 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   const added = confirmed ? request.cents : null;
 
   useEffect(() => {
-    if (added === null) return;
-    const timer = setTimeout(close, 1800);
+    if (added === null || browsing || !visible) return;
+    const timer = setTimeout(onClose, 1800);
     return () => clearTimeout(timer);
-  });
+  }, [added, browsing, visible, onClose]);
 
   const submit = async () => {
     if (!valid || busy || me === undefined) return;
@@ -65,8 +70,13 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   };
 
   const openCheckout = async () => {
-    if (!checkoutUrl) return;
-    await openBrowserAsync(checkoutUrl);
+    if (!checkoutUrl || browsing) return;
+    setBrowsing(true);
+    try {
+      await openBrowserAsync(checkoutUrl);
+    } finally {
+      setBrowsing(false);
+    }
     setNotice("Checkout closed. Your balance updates once Whop confirms the payment.");
   };
 
@@ -76,7 +86,7 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   };
 
   return (
-    <Modal visible={visible} transparent animationType="slide" onRequestClose={close}>
+    <Modal visible={visible} transparent animationType="slide" onRequestClose={close} onShow={reset} onDismiss={reset}>
       <Pressable style={styles.backdrop} onPress={close} accessibilityLabel="Close" />
       <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined}>
         <View style={[styles.sheet, { paddingBottom: insets.bottom + 20 }]}>
