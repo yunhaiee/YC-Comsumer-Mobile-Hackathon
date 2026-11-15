@@ -40,7 +40,14 @@ type ButtonProps = {
 
 export function Button({ label, onPress, variant = "primary", icon, selected, disabled, loading, style }: ButtonProps) {
   const inactive = disabled || loading;
-  const labelColor = variant === "yes" && selected ? colors.positive : variant === "no" && selected ? colors.negative : colors.text;
+  const labelColor =
+    variant === "primary" && inactive && !loading
+      ? colors.faint
+      : variant === "yes" && selected
+        ? colors.positive
+        : variant === "no" && selected
+          ? colors.negative
+          : colors.text;
   return (
     <Pressable
       accessibilityRole="button"
@@ -51,7 +58,7 @@ export function Button({ label, onPress, variant = "primary", icon, selected, di
         styles.button,
         styles[variant],
         selected && (variant === "yes" ? styles.yesSelected : variant === "no" ? styles.noSelected : styles.selected),
-        inactive && styles.inactive,
+        inactive && (variant === "primary" ? styles.primaryInactive : styles.inactive),
         pressed && !inactive && styles.pressed,
         style,
       ]}
@@ -417,6 +424,7 @@ const styles = StyleSheet.create({
   noSelected: { backgroundColor: colors.negativeSoft, borderColor: colors.negative },
   selected: { borderWidth: 1.5, borderColor: colors.text },
   inactive: { opacity: 0.4 },
+  primaryInactive: { backgroundColor: colors.surfaceRaised },
   pressed: { opacity: 0.75, transform: [{ scale: 0.98 }] },
   buttonLabel: { color: colors.text, ...font.headline, textAlign: "center" },
   iconButton: {

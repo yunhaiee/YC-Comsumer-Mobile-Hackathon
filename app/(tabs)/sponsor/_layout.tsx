@@ -1,7 +1,8 @@
 import { useQuery } from "convex/react";
-import { Stack } from "expo-router";
+import { Stack, router } from "expo-router";
 
-import { SponsorErrorBoundary, Loading, Notice, SponsorScreen } from "@/components/sponsor/ui";
+import { SponsorErrorBoundary, Loading, SponsorScreen } from "@/components/sponsor/ui";
+import { Button, EmptyState } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { colors } from "@/lib/theme";
 
@@ -9,17 +10,21 @@ function SponsorGate() {
   const me = useQuery(api.profiles.me, {});
   if (me === undefined) {
     return (
-      <SponsorScreen title="Sponsor studio" back="/">
+      <SponsorScreen title="Studio" back="/">
         <Loading />
       </SponsorScreen>
     );
   }
   if (!me?.isSponsor) {
     return (
-      <SponsorScreen title="Sponsor access required" back="/">
-        <Notice>
-          {me ? "This account is not a sponsor member. Sign in with an authorized sponsor account to create and review campaigns." : "Sign in with an authorized sponsor account to open the sponsor studio."}
-        </Notice>
+      <SponsorScreen title="Studio" back="/">
+        <EmptyState
+          icon="megaphone"
+          title="Sponsor"
+          accent="studio"
+          body={me ? "This account isn’t a sponsor member." : "Sign in with a sponsor account."}
+          action={me ? null : <Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
+        />
       </SponsorScreen>
     );
   }
