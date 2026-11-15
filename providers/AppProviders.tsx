@@ -10,13 +10,21 @@ import { api } from "@/convex/_generated/api";
 const deploymentUrl = process.env.EXPO_PUBLIC_CONVEX_URL;
 const client = deploymentUrl ? new ConvexReactClient(deploymentUrl) : null;
 
+const memory = new Map<string, string>();
+
 const secureStorage: TokenStorage | undefined =
   Platform.OS === "web"
     ? undefined
     : {
-        getItem: SecureStore.getItemAsync,
-        setItem: SecureStore.setItemAsync,
-        removeItem: SecureStore.deleteItemAsync,
+        getItem: (key) => SecureStore.getItemAsync(key).catch(() => memory.get(key) ?? null),
+        setItem: (key, value) => {
+          memory.set(key, value);
+          return SecureStore.setItemAsync(key, value).catch(() => undefined);
+        },
+        removeItem: (key) => {
+          memory.delete(key);
+          return SecureStore.deleteItemAsync(key).catch(() => undefined);
+        },
       };
 
 export function AppProviders({ children }: PropsWithChildren) {
