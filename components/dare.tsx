@@ -12,6 +12,8 @@ import { colors, font, hairline, radius } from "@/lib/theme";
 
 const URGENT_MS = 10 * 60 * 1000;
 
+export const sponsorLabel = (name: string) => name.replace(/\s*[—–-]\s*sandbox$/i, "");
+
 export function PhaseCountdown({ campaign }: { campaign: CampaignSummary }) {
   const now = useNow();
   const phase = campaignPhase(campaign, now);
@@ -67,9 +69,9 @@ export function DareCard({ campaign }: { campaign: CampaignSummary }) {
       style={({ pressed }) => [styles.card, pressed && { opacity: 0.9 }]}
     >
       <View style={styles.sponsorRow}>
-        <Avatar label={campaign.sponsorName} size={22} />
+        <Avatar label={sponsorLabel(campaign.sponsorName)} size={22} />
         <Text style={styles.sponsor} numberOfLines={1}>
-          {campaign.sponsorName}
+          {sponsorLabel(campaign.sponsorName)}
         </Text>
       </View>
       <Text style={styles.title} numberOfLines={2}>

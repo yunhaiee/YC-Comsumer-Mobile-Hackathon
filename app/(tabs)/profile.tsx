@@ -77,7 +77,7 @@ export default function ProfileScreen() {
         {signingOut ? <ActivityIndicator color={colors.muted} /> : null}
       </View>
 
-      <Text style={styles.footnote}>Play credits only. Sandbox rewards are recorded, not paid.</Text>
+      <Text style={styles.footnote}>Play credits only. Rewards are recorded, not paid.</Text>
     </Screen>
   );
 }

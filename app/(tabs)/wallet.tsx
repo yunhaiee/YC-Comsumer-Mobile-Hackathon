@@ -66,7 +66,7 @@ export default function WalletScreen() {
                   icon="gift"
                   iconTone="accent"
                   title="Dare reward"
-                  subtitle="Sandbox · recorded, not paid"
+                  subtitle="Recorded, not paid"
                   value={formatUsd(r.rewardUsdCents)}
                   onPress={() => router.push({ pathname: "/dare/[id]", params: { id: r.campaignId } })}
                 />

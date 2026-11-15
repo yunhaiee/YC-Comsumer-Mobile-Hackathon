@@ -3,7 +3,7 @@ import { router, useLocalSearchParams } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, TextInput, View } from "react-native";
 
-import { ForAgainst, PhaseCountdown, Prize } from "@/components/dare";
+import { ForAgainst, PhaseCountdown, Prize, sponsorLabel } from "@/components/dare";
 import { Avatar, Button, Card, CenterMessage, Chip, Disclosure, ErrorText, Loading, NavHeader, Pill, Row, Screen, text } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
@@ -51,11 +51,10 @@ export default function DareDetailScreen() {
       <NavHeader />
       <View style={{ gap: 10 }}>
         <View style={styles.sponsorRow}>
-          <Avatar label={campaign.sponsorName} size={24} />
+          <Avatar label={sponsorLabel(campaign.sponsorName)} size={24} />
           <Text style={styles.sponsor} numberOfLines={1}>
-            {campaign.sponsorName}
+            {sponsorLabel(campaign.sponsorName)}
           </Text>
-          {campaign.isDemo ? <Pill label="Demo" /> : null}
         </View>
         <Text style={styles.title}>{campaign.title}</Text>
       </View>
@@ -147,7 +146,7 @@ export default function DareDetailScreen() {
           <Text style={text.body}>For means you think someone completes it; Against means nobody does.</Text>
           <Text style={text.body}>Predictions use free play credits. Variable return; the pool changes until cutoff.</Text>
           <Text style={text.body}>Players can’t predict on a dare they join, and predictors can’t join.</Text>
-          <Text style={text.body}>The earliest approved completions win. Sandbox demo: rewards are recorded, not paid out.</Text>
+          <Text style={text.body}>The earliest approved completions win. Rewards are recorded, not paid out.</Text>
         </Disclosure>
       </View>
     </Screen>
