@@ -25,7 +25,7 @@ export default function ProfileScreen() {
           title="Join the"
           accentLogo
           body="Take dares or predict in USD."
-          action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
+          action={<Button label="Sign in" variant="secondary" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
     );
