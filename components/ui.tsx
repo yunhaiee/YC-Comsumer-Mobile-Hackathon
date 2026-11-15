@@ -317,37 +317,6 @@ export function ActionTiles({ tiles }: { tiles: { icon: IconName; label: string;
   );
 }
 
-export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) {
-  const tile = size * 0.62;
-  const diamond = (offset: number, color: string, scale = 1) => ({
-    position: "absolute" as const,
-    width: tile * scale,
-    height: tile * scale,
-    borderRadius: tile * 0.16 * scale,
-    backgroundColor: color,
-    top: size * 0.5 - (tile * scale) / 2 + offset,
-    left: size / 2 - (tile * scale) / 2,
-    transform: [{ scaleY: 0.58 }, { rotate: "45deg" }],
-  });
-  return (
-    <View style={{ width: size, height: size }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {[14, 12, 10, 8, 6, 4, 2].map((o) => (
-        <View key={o} style={diamond(o + size * 0.08, "#232326")} />
-      ))}
-      <View style={diamond(size * 0.08, "#3A3A3E")} />
-      {[6, 4, 2].map((o) => (
-        <View key={`a${o}`} style={diamond(o - size * 0.06, "#8E8E93", 0.55)} />
-      ))}
-      <View style={diamond(-size * 0.06, "#E5E5EA", 0.55)} />
-      <View style={{ position: "absolute", left: 0, right: 0, top: size * 0.06, alignItems: "center" }}>
-        <View style={styles.isoBadge}>
-          <Ionicons name={icon} size={size * 0.24} color={colors.accent} />
-        </View>
-      </View>
-    </View>
-  );
-}
-
 export function Disclosure({ title, icon, children }: PropsWithChildren<{ title: string; icon?: IconName }>) {
   const [open, setOpen] = useState(false);
   return (
@@ -400,7 +369,7 @@ export function EmptyState({
       {icon === "logo" ? (
         <Image source={require("@/assets/logo-symbol.png")} style={styles.emptyLogo} accessibilityElementsHidden />
       ) : (
-        <IsoArt icon={icon} />
+        <Ionicons name={icon} size={40} color={colors.faint} />
       )}
       <View style={styles.emptyTitleRow}>
         <Text style={styles.emptyTitle}>
@@ -533,7 +502,6 @@ const styles = StyleSheet.create({
   },
   tilePressed: { backgroundColor: colors.surface },
   tileLabel: { color: colors.text, fontSize: 15, fontWeight: "500", letterSpacing: -0.2 },
-  isoBadge: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   disclosure: { borderBottomWidth: hairline, borderBottomColor: colors.hairline },
   disclosureHead: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   disclosureTitle: { flex: 1, color: colors.text, ...font.headline },
