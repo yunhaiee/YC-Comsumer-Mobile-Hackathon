@@ -8,6 +8,26 @@ import { whopWebhook } from "./whop/webhook";
 
 const http = httpRouter();
 http.route({ path: "/whop/webhook", method: "POST", handler: whopWebhook });
+http.route({
+  path: "/whop/return",
+  method: "GET",
+  handler: httpAction(
+    async () =>
+      new Response(
+        '<!doctype html><html lang="en"><head><meta charset="utf-8"><meta name="viewport" content="width=device-width, initial-scale=1"><title>Return to DARE</title></head><body><main><h1>Checkout finished.</h1><p>Return to the DARE app.</p><a href="dare://sponsor">Open DARE</a></main></body></html>',
+        {
+          headers: {
+            "Content-Type": "text/html; charset=utf-8",
+            "Cache-Control": "no-store",
+            "Content-Security-Policy":
+              "default-src 'none'; base-uri 'none'; form-action 'none'; frame-ancestors 'none'",
+            "X-Content-Type-Options": "nosniff",
+            "Referrer-Policy": "no-referrer",
+          },
+        },
+      ),
+  ),
+});
 const headers = {
   "Access-Control-Allow-Origin": "*",
   "Access-Control-Allow-Headers": "Authorization, Content-Type, Range",

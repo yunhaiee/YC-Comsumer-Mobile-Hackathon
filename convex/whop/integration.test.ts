@@ -6,11 +6,17 @@ import { afterEach, beforeEach, describe, expect, it, vi } from "vitest";
 
 import { api, components, internal } from "../_generated/api";
 import schema from "../schema";
+import { whopConfig } from "./client";
 
 const modules = import.meta.glob("/convex/**/*.{ts,js}");
 const testSecret = "ws_test_fixture_only_not_a_real_credential";
 const checkoutUrl = "https://sandbox.whop.com/checkout/ch_test/";
-const money = (amount: string) => ({ amount, currency: "usd", decimals: 2, display_decimals: 2 });
+const money = (amount: string) => ({
+  amount,
+  currency: "usd",
+  decimals: 2,
+  display_decimals: 2,
+});
 
 beforeEach(() => {
   vi.useFakeTimers();
@@ -28,20 +34,30 @@ afterEach(() => {
   vi.useRealTimers();
   vi.unstubAllEnvs();
   vi.unstubAllGlobals();
+  vi.restoreAllMocks();
 });
 
 async function sponsorSession(t: TestConvex<typeof schema>) {
-  const userId = await t.mutation(internal.users.createUser, { method: { name: "usernamePassword", profile: {} } });
-  const tokens = await t.mutation(components.auth.public._internal_dangerous_signIn, {
-    userId,
-    claims: { method: "usernamePassword", profile: {} },
-    componentPath: "authPassword",
-    accessTokenTtlSeconds: 60,
-    refreshInactivityTimeoutSeconds: 86400,
-    sessionMaxLifetimeSeconds: 86400,
+  const userId = await t.mutation(internal.users.createUser, {
+    method: { name: "usernamePassword", profile: {} },
   });
+  const tokens = await t.mutation(
+    components.auth.public._internal_dangerous_signIn,
+    {
+      userId,
+      claims: { method: "usernamePassword", profile: {} },
+      componentPath: "authPassword",
+      accessTokenTtlSeconds: 60,
+      refreshInactivityTimeoutSeconds: 86400,
+      sessionMaxLifetimeSeconds: 86400,
+    },
+  );
   const sponsorId = await t.run(async (ctx) => {
-    const id = await ctx.db.insert("sponsors", { name: "Payment test sponsor", isDemo: true, campaignCount: 0 });
+    const id = await ctx.db.insert("sponsors", {
+      name: "Payment test sponsor",
+      isDemo: true,
+      campaignCount: 0,
+    });
     await ctx.db.insert("memberships", { userId, sponsorId: id });
     return id;
   });
@@ -89,16 +105,35 @@ function providerPayment(f: Awaited<ReturnType<typeof fixture>>) {
     refunded_at: null,
     auto_refunded: false,
     promo_code_id: null,
-    metadata: { dare_campaign_id: f.campaignId, dare_sponsor_id: f.sponsorId, dare_environment: "sandbox" },
+    metadata: {
+      dare_campaign_id: f.campaignId,
+      dare_sponsor_id: f.sponsorId,
+      dare_environment: "sandbox",
+    },
   };
 }
 
 async function signedRequest(type = "payment.succeeded", eventId = "msg_test") {
-  const body = JSON.stringify({ id: eventId, type, account_id: "biz_test", data: { id: "pay_test", checkout_configuration_id: "ch_test" } });
+  const body = JSON.stringify({
+    id: eventId,
+    type,
+    account_id: "biz_test",
+    data: { id: "pay_test", checkout_configuration_id: "ch_test" },
+  });
   const timestamp = String(Math.floor(Date.now() / 1000));
   const encoder = new TextEncoder();
-  const key = await crypto.subtle.importKey("raw", encoder.encode(testSecret), { name: "HMAC", hash: "SHA-256" }, false, ["sign"]);
-  const signature = await crypto.subtle.sign("HMAC", key, encoder.encode(`${eventId}.${timestamp}.${body}`));
+  const key = await crypto.subtle.importKey(
+    "raw",
+    encoder.encode(testSecret),
+    { name: "HMAC", hash: "SHA-256" },
+    false,
+    ["sign"],
+  );
+  const signature = await crypto.subtle.sign(
+    "HMAC",
+    key,
+    encoder.encode(`${eventId}.${timestamp}.${body}`),
+  );
   return {
     method: "POST",
     headers: {
@@ -114,31 +149,162 @@ async function signedRequest(type = "payment.succeeded", eventId = "msg_test") {
 async function state(f: Awaited<ReturnType<typeof fixture>>) {
   return await f.t.run(async (ctx) => ({
     campaign: await ctx.db.get("campaigns", f.campaignId),
-    payments: await ctx.db.query("payments").withIndex("by_campaignId", (q) => q.eq("campaignId", f.campaignId)).take(10),
+    payments: await ctx.db
+      .query("payments")
+      .withIndex("by_campaignId", (q) => q.eq("campaignId", f.campaignId))
+      .take(10),
     events: await ctx.db.query("paymentEvents").take(10),
   }));
 }
 
 describe("sandbox checkout through real Convex functions", () => {
+  it("requires an HTTPS return URL instead of a native deep link", () => {
+    vi.stubEnv("WHOP_CHECKOUT_RETURN_URL", "dare://sponsor");
+    expect(() => whopConfig()).toThrow(
+      "return URL is not configured correctly",
+    );
+    vi.stubEnv(
+      "WHOP_CHECKOUT_RETURN_URL",
+      "https://fastidious-gnat-814.convex.site/whop/return",
+    );
+    expect(whopConfig().returnUrl).toBe(
+      "https://fastidious-gnat-814.convex.site/whop/return",
+    );
+    vi.stubEnv(
+      "WHOP_CHECKOUT_RETURN_URL",
+      "https://user:password@example.com/return",
+    );
+    expect(() => whopConfig()).toThrow(
+      "return URL is not configured correctly",
+    );
+  });
+
+  it("serves a static app return link without reading or changing payment state", async () => {
+    const f = await boundFixture();
+    const before = await state(f);
+    const response = await f.t.fetch(
+      "/whop/return?status=paid&campaignId=untrusted",
+    );
+    expect(response.status).toBe(200);
+    expect(response.headers.get("Content-Type")).toBe(
+      "text/html; charset=utf-8",
+    );
+    expect(response.headers.get("Cache-Control")).toBe("no-store");
+    expect(response.headers.get("Content-Security-Policy")).toContain(
+      "default-src 'none'",
+    );
+    const html = await response.text();
+    expect(html).toContain('href="dare://sponsor"');
+    expect(html).toContain("Checkout finished.");
+    expect(html).not.toContain("untrusted");
+    expect(html).not.toContain("<script");
+    expect(await state(f)).toEqual(before);
+  });
+
+  it("logs only a numeric provider status and an allowlisted failure category", async () => {
+    const f = await fixture();
+    const log = vi.spyOn(console, "error").mockImplementation(() => {});
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json(
+          {
+            error: {
+              message: "fake-key-and-private-person@example.com",
+              request_body: "private-body",
+              sponsor_id: f.sponsorId,
+              url: "https://secret.example",
+            },
+          },
+          { status: 422 },
+        ),
+      ),
+    );
+    await expect(
+      f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow("Whop sandbox checkout is unavailable");
+    expect(log).toHaveBeenCalledWith("Whop sandbox checkout failed", {
+      status: 422,
+      category: "invalid_request",
+    });
+    const captured = JSON.stringify(log.mock.calls);
+    for (const privateValue of [
+      "fake-key",
+      "private-person",
+      "private-body",
+      f.sponsorId,
+      "https://secret.example",
+      "sandbox_unit_test_not_a_real_key",
+    ])
+      expect(captured).not.toContain(privateValue);
+    expect((await state(f)).campaign?.state).toBe("draft");
+  });
   it("uses frozen sponsor terms and reuses the durable checkout without activating", async () => {
     const f = await fixture();
-    const calls: { url: string; method: string; body: Record<string, unknown>; headers: Headers }[] = [];
-    const fetcher = vi.fn(async (input: string | URL | Request, init?: RequestInit) => {
-      const url = String(input);
-      calls.push({ url, method: init?.method ?? "GET", body: JSON.parse(String(init?.body)), headers: new Headers(init?.headers) });
-      if (url.endsWith("/checkout_configurations")) return Response.json({ id: "ch_test", account_id: "biz_test", mode: "payment", purchase_url: checkoutUrl, variant: { id: "plan_test" } });
-      if (url.endsWith("/variants/plan_test")) return Response.json({ id: "plan_test", currency: "usd", billing_type: "one_time", initial_price: 25, adaptive_pricing_enabled: false, allow_multiple_quantity: false });
-      throw new Error("Unexpected provider request");
-    });
+    const calls: {
+      url: string;
+      method: string;
+      body: Record<string, unknown>;
+      headers: Headers;
+    }[] = [];
+    const fetcher = vi.fn(
+      async (input: string | URL | Request, init?: RequestInit) => {
+        const url = String(input);
+        calls.push({
+          url,
+          method: init?.method ?? "GET",
+          body: JSON.parse(String(init?.body)),
+          headers: new Headers(init?.headers),
+        });
+        if (url.endsWith("/checkout_configurations"))
+          return Response.json({
+            id: "ch_test",
+            account_id: "biz_test",
+            mode: "payment",
+            purchase_url: checkoutUrl,
+            variant: { id: "plan_test" },
+          });
+        if (url.endsWith("/variants/plan_test"))
+          return Response.json({
+            id: "plan_test",
+            currency: "usd",
+            billing_type: "one_time",
+            initial_price: 25,
+            adaptive_pricing_enabled: false,
+            allow_multiple_quantity: false,
+          });
+        throw new Error("Unexpected provider request");
+      },
+    );
     vi.stubGlobal("fetch", fetcher);
-    expect(await f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId })).toEqual({ checkoutUrl, sandbox: true });
-    expect(await f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId })).toEqual({ checkoutUrl, sandbox: true });
+    expect(
+      await f.sponsor.action(api.whop.checkout.create, {
+        campaignId: f.campaignId,
+      }),
+    ).toEqual({ checkoutUrl, sandbox: true });
+    expect(
+      await f.sponsor.action(api.whop.checkout.create, {
+        campaignId: f.campaignId,
+      }),
+    ).toEqual({ checkoutUrl, sandbox: true });
     expect(calls).toHaveLength(2);
-    expect(calls[0].url).toBe("https://sandbox-api.whop.com/api/v1/checkout_configurations");
-    expect(calls[0].headers.get("Idempotency-Key")).toBe(`dare:checkout:${f.campaignId}:v1`);
+    expect(calls[0].url).toBe(
+      "https://sandbox-api.whop.com/api/v1/checkout_configurations",
+    );
+    expect(calls[0].headers.get("Idempotency-Key")).toBe(
+      `dare:checkout:${f.campaignId}:v1`,
+    );
     expect(calls[0].headers.get("Api-Version-Date")).toBe("2026-11-14-1");
-    expect(calls[0].body.variant).toMatchObject({ initial_price: 25, currency: "usd", billing_type: "one_time", stock: 1 });
-    expect(calls[0].body.metadata).toMatchObject({ dare_campaign_id: f.campaignId, dare_sponsor_id: f.sponsorId });
+    expect(calls[0].body.variant).toMatchObject({
+      initial_price: 25,
+      currency: "usd",
+      billing_type: "one_time",
+      stock: 1,
+    });
+    expect(calls[0].body.metadata).toMatchObject({
+      dare_campaign_id: f.campaignId,
+      dare_sponsor_id: f.sponsorId,
+    });
     const result = await state(f);
     expect(result.campaign?.state).toBe("awaiting_payment");
     expect(result.payments).toHaveLength(0);
@@ -149,7 +315,9 @@ describe("sandbox checkout through real Convex functions", () => {
     vi.stubEnv("WHOP_API_KEY", "");
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
-    await expect(f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId })).rejects.toThrow("Sandbox checkout is not configured");
+    await expect(
+      f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow("Sandbox checkout is not configured");
     expect(fetcher).not.toHaveBeenCalled();
     expect((await state(f)).campaign?.state).toBe("draft");
   });
@@ -159,7 +327,9 @@ describe("sandbox checkout through real Convex functions", () => {
     vi.setSystemTime(Date.now() + 600_001);
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
-    await expect(f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId })).rejects.toThrow("The payment deadline has passed");
+    await expect(
+      f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow("The payment deadline has passed");
     expect(fetcher).not.toHaveBeenCalled();
     expect((await state(f)).payments).toHaveLength(0);
   });
@@ -169,8 +339,12 @@ describe("sandbox checkout through real Convex functions", () => {
     const { sponsor: other } = await sponsorSession(f.t);
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
-    await expect(f.t.action(api.whop.checkout.create, { campaignId: f.campaignId })).rejects.toThrow("Sign in required");
-    await expect(other.action(api.whop.checkout.create, { campaignId: f.campaignId })).rejects.toThrow("Sponsor review permission required");
+    await expect(
+      f.t.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow("Sign in required");
+    await expect(
+      other.action(api.whop.checkout.create, { campaignId: f.campaignId }),
+    ).rejects.toThrow("Sponsor review permission required");
     expect(fetcher).not.toHaveBeenCalled();
     expect((await state(f)).campaign?.state).toBe("draft");
   });
@@ -182,25 +356,45 @@ describe("signed webhook to atomic activation", () => {
     const fetcher = vi.fn(async () => Response.json(providerPayment(f)));
     vi.stubGlobal("fetch", fetcher);
     const request = await signedRequest();
-    const responses = await Promise.all([f.t.fetch("/whop/webhook", request), f.t.fetch("/whop/webhook", request)]);
+    const responses = await Promise.all([
+      f.t.fetch("/whop/webhook", request),
+      f.t.fetch("/whop/webhook", request),
+    ]);
     expect(responses.map((response) => response.status)).toEqual([200, 200]);
-    expect((await f.t.fetch("/whop/webhook", await signedRequest("payment.succeeded", "msg_second"))).status).toBe(200);
+    expect(
+      (
+        await f.t.fetch(
+          "/whop/webhook",
+          await signedRequest("payment.succeeded", "msg_second"),
+        )
+      ).status,
+    ).toBe(200);
     const result = await state(f);
     expect(result.campaign?.state).toBe("prediction_open");
     expect(result.payments).toHaveLength(1);
     expect(result.events).toHaveLength(2);
-    expect(result.payments[0]).toMatchObject({ amountUsdCents: 2500, currency: "USD", sandbox: true, providerPaymentId: "pay_test" });
+    expect(result.payments[0]).toMatchObject({
+      amountUsdCents: 2500,
+      currency: "USD",
+      sandbox: true,
+      providerPaymentId: "pay_test",
+    });
   });
 
-  it.each(["payment.canceled", "payment.failed", "payment.pending"])("does not activate a signed %s event", async (type) => {
-    const f = await boundFixture();
-    const fetcher = vi.fn();
-    vi.stubGlobal("fetch", fetcher);
-    expect((await f.t.fetch("/whop/webhook", await signedRequest(type))).status).toBe(200);
-    expect(fetcher).not.toHaveBeenCalled();
-    expect((await state(f)).payments).toHaveLength(0);
-    expect((await state(f)).campaign?.state).toBe("awaiting_payment");
-  });
+  it.each(["payment.canceled", "payment.failed", "payment.pending"])(
+    "does not activate a signed %s event",
+    async (type) => {
+      const f = await boundFixture();
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+      expect(
+        (await f.t.fetch("/whop/webhook", await signedRequest(type))).status,
+      ).toBe(200);
+      expect(fetcher).not.toHaveBeenCalled();
+      expect((await state(f)).payments).toHaveLength(0);
+      expect((await state(f)).campaign?.state).toBe("awaiting_payment");
+    },
+  );
 
   it("rejects an invalid signature without retrieving or recording a payment", async () => {
     const f = await boundFixture();
@@ -220,8 +414,13 @@ describe("signed webhook to atomic activation", () => {
     { status: "void" },
   ])("does not activate a mismatched provider payment %#", async (change) => {
     const f = await boundFixture();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ ...providerPayment(f), ...change })));
-    expect((await f.t.fetch("/whop/webhook", await signedRequest())).status).toBe(400);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json({ ...providerPayment(f), ...change })),
+    );
+    expect(
+      (await f.t.fetch("/whop/webhook", await signedRequest())).status,
+    ).toBe(400);
     const result = await state(f);
     expect(result.payments).toHaveLength(0);
     expect(result.campaign?.state).toBe("awaiting_payment");
@@ -229,8 +428,15 @@ describe("signed webhook to atomic activation", () => {
 
   it("asks the provider to retry an unavailable payment without activating", async () => {
     const f = await boundFixture();
-    vi.stubGlobal("fetch", vi.fn(async () => Response.json({ error: { message: "Unavailable" } }, { status: 503 })));
-    expect((await f.t.fetch("/whop/webhook", await signedRequest())).status).toBe(503);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () =>
+        Response.json({ error: { message: "Unavailable" } }, { status: 503 }),
+      ),
+    );
+    expect(
+      (await f.t.fetch("/whop/webhook", await signedRequest())).status,
+    ).toBe(503);
     expect((await state(f)).payments).toHaveLength(0);
   });
 });
