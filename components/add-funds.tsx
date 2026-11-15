@@ -27,6 +27,7 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
   const [error, setError] = useState<string | null>(null);
   const [notice, setNotice] = useState<string | null>(null);
   const [request, setRequest] = useState<{ cents: number; id: string } | null>(null);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
 
   const cents = preset === "custom" ? Math.round(Number(custom) * 100) : preset;
   const valid = Number.isFinite(cents) && cents >= MIN_CENTS && cents <= MAX_CENTS;
@@ -35,6 +36,7 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
     setError(null);
     setNotice(null);
     setRequest(null);
+    setCheckoutUrl(null);
     onClose();
   };
 
@@ -46,13 +48,22 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
     setError(null);
     setNotice(null);
     try {
-      const { checkoutUrl } = await create({ amountUsdCents: cents, requestId: current.id });
-      await openBrowserAsync(checkoutUrl);
-      setNotice("Checkout closed. Your balance updates once Whop confirms the payment.");
+      setCheckoutUrl((await create({ amountUsdCents: cents, requestId: current.id })).checkoutUrl);
     } catch (caught) {
       setError(errorMessage(caught));
     }
     setBusy(false);
+  };
+
+  const openCheckout = async () => {
+    if (!checkoutUrl) return;
+    await openBrowserAsync(checkoutUrl);
+    setNotice("Checkout closed. Your balance updates once Whop confirms the payment.");
+  };
+
+  const pick = (next: number | "custom") => {
+    setPreset(next);
+    setCheckoutUrl(null);
   };
 
   return (
@@ -65,16 +76,19 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
           <Text style={styles.caption}>USD · test payments only, no real money</Text>
           <View style={styles.chips}>
             {PRESETS.map((value) => (
-              <Chip key={value} label={formatUsd(value)} selected={preset === value} onPress={() => setPreset(value)} />
+              <Chip key={value} label={formatUsd(value)} selected={preset === value} onPress={() => pick(value)} />
             ))}
-            <Chip label="Custom" selected={preset === "custom"} onPress={() => setPreset("custom")} />
+            <Chip label="Custom" selected={preset === "custom"} onPress={() => pick("custom")} />
           </View>
           {preset === "custom" ? (
             <View style={styles.amountBox}>
               <Text style={styles.prefix}>$</Text>
               <TextInput
                 value={custom}
-                onChangeText={setCustom}
+                onChangeText={(value) => {
+                  setCustom(value);
+                  setCheckoutUrl(null);
+                }}
                 keyboardType="decimal-pad"
                 placeholder="5–500"
                 placeholderTextColor={colors.faint}
@@ -87,7 +101,11 @@ export function AddFundsSheet({ visible, onClose }: { visible: boolean; onClose:
           ) : null}
           <ErrorText message={preset === "custom" && custom !== "" && !valid ? "Enter $5 to $500." : error} />
           {notice ? <Text style={styles.caption}>{notice}</Text> : null}
-          <Button label={valid ? `Add ${formatUsd(cents, true)}` : "Add funds"} onPress={submit} loading={busy} disabled={!valid} />
+          {checkoutUrl ? (
+            <Button label={`Pay ${formatUsd(cents, true)} with Whop`} onPress={openCheckout} />
+          ) : (
+            <Button label={valid ? `Add ${formatUsd(cents, true)}` : "Add funds"} onPress={submit} loading={busy} disabled={!valid} />
+          )}
           <Text style={[styles.caption, { textAlign: "center" }]}>Paid with Whop sandbox checkout.</Text>
         </View>
       </KeyboardAvoidingView>
