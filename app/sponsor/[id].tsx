@@ -1,5 +1,4 @@
 import { useAction, useMutation, useQuery } from "convex/react";
-import { makeFunctionReference } from "convex/server";
 import { useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { openBrowserAsync } from "expo-web-browser";
@@ -9,8 +8,6 @@ import { Text, View } from "react-native";
 import { Button, Card, Field, Loading, Notice, SponsorScreen, Status, errorText, money, newRequestId, styles, when } from "@/components/sponsor/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
-
-const createCheckout = makeFunctionReference<"action", { campaignId: Id<"campaigns"> }, { checkoutUrl: string; sandbox: true }>("whop/checkout:create");
 
 export default function SponsorCampaign() {
   const { id } = useLocalSearchParams<{ id: string }>();
@@ -74,21 +71,26 @@ export default function SponsorCampaign() {
 }
 
 function Checkout({ campaignId }: { campaignId: Id<"campaigns"> }) {
-  const create = useAction(createCheckout);
+  const create = useAction(api.whop.checkout.create);
   const [busy, setBusy] = useState(false);
+  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
   const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
 
-  const pay = async () => {
+  const prepare = async () => {
     setBusy(true);
     setMessage(null);
     try {
-      const { checkoutUrl } = await create({ campaignId });
-      await openBrowserAsync(checkoutUrl);
-      setMessage({ text: "Checkout closed. Campaign remains inactive until payment is confirmed. This page updates automatically when Whop confirms it.", error: false });
+      setCheckoutUrl((await create({ campaignId })).checkoutUrl);
     } catch (caught) {
       setMessage({ text: errorText(caught), error: true });
     }
     setBusy(false);
+  };
+
+  const open = async () => {
+    if (!checkoutUrl) return;
+    await openBrowserAsync(checkoutUrl);
+    setMessage({ text: "Checkout closed. Campaign remains inactive until payment is confirmed. This page updates automatically when Whop confirms it.", error: false });
   };
 
   return (
@@ -96,7 +98,7 @@ function Checkout({ campaignId }: { campaignId: Id<"campaigns"> }) {
       <Text style={styles.eyebrow}>PAYMENT</Text>
       <Text style={styles.body}>Pay with Whop sandbox checkout to open predictions. Use test card 4242 4242 4242 4242. No real money moves.</Text>
       {message ? <Notice error={message.error}>{message.text}</Notice> : null}
-      <Button onPress={pay} busy={busy}>Pay with Whop sandbox</Button>
+      {checkoutUrl ? <Button onPress={open}>Open Whop sandbox checkout</Button> : <Button onPress={prepare} busy={busy}>Pay with Whop sandbox</Button>}
     </Card>
   );
 }
@@ -115,6 +117,7 @@ function Submission({ submission, canReview }: { submission: Evidence; canReview
   const [reason, setReason] = useState("");
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [watching, setWatching] = useState(false);
   const request = useRef<{ key: string; id: string } | null>(null);
 
   const decide = async (decision: "approved" | "rejected") => {
@@ -137,7 +140,8 @@ function Submission({ submission, canReview }: { submission: Evidence; canReview
         <Status state={submission.status} />
       </View>
       <Text style={styles.hint}>Submitted {when(submission.submittedAt)}</Text>
-      {submission.mediaUrl ? <Player uri={submission.mediaUrl} /> : <Notice error>Video unavailable.</Notice>}
+      {!submission.mediaUrl ? <Notice error>Video unavailable.</Notice> : watching ? <Player uri={submission.mediaUrl} /> : null}
+      {submission.mediaUrl ? <Button secondary onPress={() => setWatching(!watching)}>{watching ? "Hide video" : "Watch video"}</Button> : null}
       {submission.status === "pending" && canReview ? (
         <>
           <Field label="Reason" value={reason} onChangeText={setReason} maxLength={1000} multiline hint="Required for approval or rejection. Shown to the participant." />
