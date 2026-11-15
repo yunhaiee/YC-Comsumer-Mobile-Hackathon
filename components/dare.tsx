@@ -8,7 +8,7 @@ import { api } from "@/convex/_generated/api";
 import { useNow } from "@/hooks/useNow";
 import { campaignPhase, poolSplit, type CampaignSummary } from "@/lib/campaign";
 import { formatUsd } from "@/lib/format";
-import { colors, font, hairline, radius } from "@/lib/theme";
+import { colors, font, radius } from "@/lib/theme";
 
 const URGENT_MS = 10 * 60 * 1000;
 
@@ -73,7 +73,7 @@ export function DareCard({ campaign }: { campaign: CampaignSummary }) {
       accessibilityRole="button"
       accessibilityLabel={campaign.title}
       onPress={() => open()}
-      style={({ pressed }) => [styles.row, pressed && { opacity: 0.6 }]}
+      style={({ pressed }) => [styles.row, pressed && { backgroundColor: colors.surface }]}
     >
       <View style={styles.rowMain}>
         <Avatar label={sponsor} size={44} />
@@ -96,7 +96,7 @@ export function DareCard({ campaign }: { campaign: CampaignSummary }) {
 }
 
 const styles = StyleSheet.create({
-  row: { paddingVertical: 14, gap: 12, borderBottomWidth: hairline, borderBottomColor: colors.hairline },
+  row: { padding: 14, gap: 12, borderRadius: radius.md, borderWidth: 1, borderColor: colors.border },
   rowMain: { flexDirection: "row", alignItems: "center", gap: 14 },
   rowText: { flex: 1, gap: 2 },
   rowRight: { alignItems: "flex-end", gap: 6 },

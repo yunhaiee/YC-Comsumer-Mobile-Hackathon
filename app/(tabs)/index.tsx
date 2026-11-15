@@ -28,8 +28,9 @@ export default function HomeScreen() {
       ListHeaderComponent={
         <View style={styles.header}>
           <View style={styles.titleRow}>
-            <Image source={require("@/assets/logo-wordmark.png")} style={styles.logo} accessibilityRole="header" accessibilityLabel="Dare" />
             <IconButton icon="add" label="Create a campaign" onPress={() => router.push("/sponsor/create")} />
+            <Image source={require("@/assets/logo-symbol.png")} style={styles.logo} accessibilityRole="header" accessibilityLabel="Dare" />
+            <View style={styles.headerSpacer} />
           </View>
           <View style={styles.chips}>
             <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
@@ -57,9 +58,10 @@ export default function HomeScreen() {
 
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: space.screen, gap: 0, maxWidth: 680, width: "100%", alignSelf: "center" },
+  content: { paddingHorizontal: space.screen, gap: 10, maxWidth: 680, width: "100%", alignSelf: "center" },
   header: { gap: 16, marginBottom: 8 },
   titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "space-between", minHeight: 52 },
-  logo: { width: 97, height: 40, resizeMode: "contain" },
+  logo: { width: 29, height: 40, resizeMode: "contain" },
+  headerSpacer: { width: 44 },
   chips: { flexDirection: "row", gap: 8 },
 });
