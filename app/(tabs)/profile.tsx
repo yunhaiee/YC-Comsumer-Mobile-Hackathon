@@ -21,11 +21,11 @@ export default function ProfileScreen() {
     return (
       <Screen title="Profile">
         <EmptyState
-          icon="person"
+          icon="logo"
           title="Join the"
-          accent="dare"
+          accentLogo
           body="Take dares or predict in USD."
-          action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
+          action={<Button label="Sign in" variant="secondary" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
     );

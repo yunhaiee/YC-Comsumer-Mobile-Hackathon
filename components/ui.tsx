@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from "react";
 import {
+  Image,
   ActivityIndicator,
   LayoutAnimation,
   Pressable,
@@ -316,37 +317,6 @@ export function ActionTiles({ tiles }: { tiles: { icon: IconName; label: string;
   );
 }
 
-export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) {
-  const tile = size * 0.62;
-  const diamond = (offset: number, color: string, scale = 1) => ({
-    position: "absolute" as const,
-    width: tile * scale,
-    height: tile * scale,
-    borderRadius: tile * 0.16 * scale,
-    backgroundColor: color,
-    top: size * 0.5 - (tile * scale) / 2 + offset,
-    left: size / 2 - (tile * scale) / 2,
-    transform: [{ scaleY: 0.58 }, { rotate: "45deg" }],
-  });
-  return (
-    <View style={{ width: size, height: size }} accessibilityElementsHidden importantForAccessibility="no-hide-descendants">
-      {[14, 12, 10, 8, 6, 4, 2].map((o) => (
-        <View key={o} style={diamond(o + size * 0.08, "#232326")} />
-      ))}
-      <View style={diamond(size * 0.08, "#3A3A3E")} />
-      {[6, 4, 2].map((o) => (
-        <View key={`a${o}`} style={diamond(o - size * 0.06, "#8E8E93", 0.55)} />
-      ))}
-      <View style={diamond(-size * 0.06, "#E5E5EA", 0.55)} />
-      <View style={{ position: "absolute", left: 0, right: 0, top: size * 0.06, alignItems: "center" }}>
-        <View style={styles.isoBadge}>
-          <Ionicons name={icon} size={size * 0.24} color={colors.accent} />
-        </View>
-      </View>
-    </View>
-  );
-}
-
 export function Disclosure({ title, icon, children }: PropsWithChildren<{ title: string; icon?: IconName }>) {
   const [open, setOpen] = useState(false);
   return (
@@ -383,22 +353,31 @@ export function EmptyState({
   icon,
   title,
   accent,
+  accentLogo,
   body,
   action,
 }: {
-  icon: IconName;
+  icon: IconName | "logo";
   title: string;
   accent?: string;
+  accentLogo?: boolean;
   body?: string;
   action?: ReactNode;
 }) {
   return (
     <View style={styles.empty}>
-      <IsoArt icon={icon} />
-      <Text style={styles.emptyTitle}>
-        {title}
-        {accent ? <Text style={{ color: colors.accent }}> {accent}</Text> : null}
-      </Text>
+      {icon === "logo" ? (
+        <Image source={require("@/assets/logo-symbol.png")} style={styles.emptyLogo} accessibilityElementsHidden />
+      ) : (
+        <Ionicons name={icon} size={40} color={colors.faint} />
+      )}
+      <View style={styles.emptyTitleRow}>
+        <Text style={styles.emptyTitle}>
+          {title}
+          {accent ? <Text style={{ color: colors.accent }}> {accent}</Text> : null}
+        </Text>
+        {accentLogo ? <Image source={require("@/assets/logo-wordmark.png")} style={styles.emptyWordmark} accessibilityLabel="Dare" /> : null}
+      </View>
       {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
       {action ? <View style={{ marginTop: 8, alignSelf: "stretch", alignItems: "center" }}>{action}</View> : null}
     </View>
@@ -523,7 +502,6 @@ const styles = StyleSheet.create({
   },
   tilePressed: { backgroundColor: colors.surface },
   tileLabel: { color: colors.text, fontSize: 15, fontWeight: "500", letterSpacing: -0.2 },
-  isoBadge: { width: 48, height: 48, alignItems: "center", justifyContent: "center" },
   disclosure: { borderBottomWidth: hairline, borderBottomColor: colors.hairline },
   disclosureHead: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
   disclosureTitle: { flex: 1, color: colors.text, ...font.headline },
@@ -541,7 +519,10 @@ const styles = StyleSheet.create({
   countdownEnded: { backgroundColor: "rgba(255,69,58,0.85)" },
   countdownText: { fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
   empty: { alignItems: "center", gap: 8, paddingVertical: 32, paddingHorizontal: 12 },
-  emptyTitle: { color: colors.text, ...font.title, textAlign: "center", marginTop: 8 },
+  emptyTitle: { color: colors.text, ...font.title, textAlign: "center" },
+  emptyTitleRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, marginTop: 8 },
+  emptyLogo: { width: 64, height: 88, resizeMode: "contain", marginBottom: 8 },
+  emptyWordmark: { width: 72, height: 30, resizeMode: "contain", marginBottom: 2 },
   emptyBody: { color: colors.muted, ...font.callout, lineHeight: 21, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12, backgroundColor: colors.background },
   error: { color: colors.negative, ...font.footnote, lineHeight: 18 },
