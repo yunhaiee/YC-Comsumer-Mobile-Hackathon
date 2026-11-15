@@ -721,7 +721,7 @@ describe("DARE secured backend", () => {
     ).toBe(416);
   });
 
-  it("resolves reviewed rejection as NO and leaves unfilled prizes undistributed", async () => {
+  it("resolves reviewed rejection as NO without allocating performer prizes", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
     const participant = (await signUp(t, "participant")).client,
       no = (await signUp(t, "noplayer")).client;
@@ -751,5 +751,42 @@ describe("DARE secured backend", () => {
       balanceUnits: 100000,
     });
     expect(await t.run((ctx) => ctx.db.query("rewards").take(10))).toEqual([]);
+  });
+
+  it("materializes scheduled cutoffs and leaves unused YES prizes unallocated", async () => {
+    const { t, sponsor, campaignId, now } = await fixture();
+    const participant = (await signUp(t, "participant")).client;
+    await participant.mutation(api.campaigns.join, { campaignId });
+    await vi.advanceTimersByTimeAsync(now + 60_000 - Date.now());
+    await t.finishInProgressScheduledFunctions();
+    expect(
+      await participant.query(api.campaigns.get, { campaignId }),
+    ).toMatchObject({
+      state: "prediction_open",
+      viewer: { canPredict: false },
+    });
+    await vi.advanceTimersByTimeAsync(60_000);
+    await t.finishInProgressScheduledFunctions();
+    expect(
+      await participant.query(api.campaigns.get, { campaignId }),
+    ).toMatchObject({
+      state: "attempts_open",
+      viewer: { canJoin: false, canSubmit: true },
+    });
+    const submitted = await evidence(t, participant, campaignId, "submission1");
+    await sponsor.mutation(api.submissions.review, {
+      submissionId: submitted.submissionId,
+      decision: "approved",
+      reason: "Exact criteria satisfied",
+      requestId: "review_0001",
+    });
+    await vi.advanceTimersByTimeAsync(120_000);
+    await t.finishInProgressScheduledFunctions();
+    expect(
+      await participant.query(api.campaigns.get, { campaignId }),
+    ).toMatchObject({ state: "resolved", outcome: "YES" });
+    const awards = await t.run((ctx) => ctx.db.query("rewards").take(10));
+    expect(awards).toHaveLength(1);
+    expect(awards[0].rewardUsdCents).toBe(1000);
   });
 });
