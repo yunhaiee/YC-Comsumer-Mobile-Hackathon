@@ -90,7 +90,7 @@ export const quote = query({
       estimatedNetProfitUnits: gross - args.stakeUnits,
       maximumLossUnits: args.stakeUnits,
       label:
-        "Variable return if your side wins; pool changes until cutoff. Sandbox USD (demo dollars), not real money. 100 units = $1 demo; no deposits, withdrawals, or redemption.",
+        "Variable return if your side wins; pool changes until cutoff. Sandbox USD (demo dollars), not real money. 100 units = $1 demo; sandbox deposits only, no withdrawals or redemption.",
       eligible,
     };
   },

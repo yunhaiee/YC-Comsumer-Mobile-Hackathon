@@ -9,7 +9,6 @@ export const LIMITS = {
   submissions: 3,
   tickets: 10,
   uploadBytes: 25 * 1024 * 1024,
-  grantUnits: 100_000,
 };
 export function fail(message: string): never {
   throw new ConvexError(message);

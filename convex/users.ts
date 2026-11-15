@@ -1,6 +1,5 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { credit, LIMITS } from "./model";
 
 export const createUser = internalMutation({
   args: {
@@ -15,7 +14,6 @@ export const createUser = internalMutation({
       balanceUnits: 0,
       createdAt: Date.now(),
     });
-    await credit(ctx, id, LIMITS.grantUnits, "grant", `grant:${id}`);
     return id;
   },
 });

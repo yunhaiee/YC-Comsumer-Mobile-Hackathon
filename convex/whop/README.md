@@ -25,6 +25,14 @@ If Whop returns `400` with `idempotency_key_mismatch`, the first checkout attemp
 - `internal.payments.activateCampaign` receives `campaignId`, `providerCheckoutId`, `providerPaymentId`, `providerEventId`, `amountUsdCents`, `currency: "USD"`, and `sandbox: true`. TK validates the stored binding and deduplicates payment/event IDs atomically. Unknown bindings and transient failures return 503 for provider retry; invalid signatures or mismatches return 400.
 - UI success comes only from reactive campaign state. Closing checkout or following a return link leaves an unconfirmed campaign inactive.
 
+## Sandbox USD deposits
+
+`api.whop.deposits.create({ amountUsdCents, requestId })` requires a signed-in user and an integer amount from 500 to 50000 ($5–$500). It returns only `{ checkoutUrl }`. The server persists an owner-bound, immutable deposit intent before calling Whop, uses `dare:deposit:<depositId>:v1` as the provider idempotency key, and saves the checkout/variant binding once. Retry the same intent with the same request ID and amount; changing the amount under that request ID is rejected. Metadata is server-owned: `kind: "deposit"`, `depositId`, `userId`, `currency: "USD"`, and `sandbox: "true"`.
+
+The signed webhook chooses campaign or deposit by the stored checkout binding, never by metadata alone. It retrieves the payment from the hardcoded sandbox API, verifies the frozen owner/amount/checkout/variant and exact metadata, then credits one `deposit` ledger row per provider payment. Both campaign and deposit handlers transactionally check both payment/event namespaces, preventing reuse across targets. Redirects, forged events, pending/failed payments, and unmatched provider values never credit balances.
+
+New accounts begin at zero and receive no free grant. Existing balances, historical grant rows, and all `*Units` API/storage names and values remain unchanged: 100 units represent $1 sandbox USD. Profile responses expose `currency: "USD"`, `moneyMode: "sandbox"`, and at most 50 recent deposit summaries containing only `amountUsdCents`, `status: "pending" | "completed"`, and `createdAt`. Closing or failing a checkout leaves it pending; no cancellation is invented. These are demo dollars with no real money, withdrawals, redemption, or automatic provider refunds.
+
 The sandbox charge represents `winnerCount * rewardUsdCents`, with zero DARE platform fee. Whop may separately display provider/buyer fees; the validated payment `total` excludes those buyer fees. Participant rewards are represented allocations, not transferred money. Sandbox payouts are unavailable.
 
 New campaign prediction cutoffs require at least three minutes of lead time. Checkout creation and cached checkout retrieval are refused when two minutes or less remain before the cutoff. These guards do not change existing campaign deadlines and cannot prevent payment through a provider URL already opened elsewhere.

@@ -81,6 +81,7 @@ export default defineSchema({
       v.literal("stake"),
       v.literal("settlement"),
       v.literal("refund"),
+      v.literal("deposit"),
     ),
     deltaUnits: v.number(),
     balanceUnits: v.number(),
@@ -149,6 +150,36 @@ export default defineSchema({
   paymentEvents: defineTable({
     providerEventId: v.string(),
     paymentId: v.id("payments"),
+  }).index("by_providerEventId", ["providerEventId"]),
+  deposits: defineTable({
+    userId: v.id("users"),
+    requestId: v.string(),
+    amountUsdCents: v.number(),
+    createdAt: v.number(),
+    status: v.union(v.literal("pending"), v.literal("completed")),
+    providerCheckoutId: v.optional(v.string()),
+    providerVariantId: v.optional(v.string()),
+    checkoutUrl: v.optional(v.string()),
+  })
+    .index("by_userId_and_requestId", ["userId", "requestId"])
+    .index("by_userId", ["userId"])
+    .index("by_providerCheckoutId", ["providerCheckoutId"]),
+  depositPayments: defineTable({
+    depositId: v.id("deposits"),
+    userId: v.id("users"),
+    providerCheckoutId: v.string(),
+    providerPaymentId: v.string(),
+    amountUsdCents: v.number(),
+    currency: v.literal("USD"),
+    sandbox: v.literal(true),
+    receivedAt: v.number(),
+    balanceUnits: v.number(),
+  })
+    .index("by_depositId", ["depositId"])
+    .index("by_providerPaymentId", ["providerPaymentId"]),
+  depositEvents: defineTable({
+    providerEventId: v.string(),
+    paymentId: v.id("depositPayments"),
   }).index("by_providerEventId", ["providerEventId"]),
   settlements: defineTable({
     campaignId: v.id("campaigns"),

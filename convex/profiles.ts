@@ -14,6 +14,13 @@ export const me = query({
       isSponsor: v.boolean(),
       sponsorId: v.union(v.id("sponsors"), v.null()),
       positions: v.array(positionView),
+      deposits: v.array(
+        v.object({
+          amountUsdCents: v.number(),
+          status: v.union(v.literal("pending"), v.literal("completed")),
+          createdAt: v.number(),
+        }),
+      ),
       rewards: v.array(
         v.object({
           campaignId: v.id("campaigns"),
@@ -39,12 +46,22 @@ export const me = query({
       .withIndex("by_userId", (q) => q.eq("userId", u._id))
       .order("desc")
       .take(100);
+    const deposits = await ctx.db
+      .query("deposits")
+      .withIndex("by_userId", (q) => q.eq("userId", u._id))
+      .order("desc")
+      .take(50);
     return {
       ...SANDBOX_MONEY,
       id: u._id,
       balanceUnits: u.balanceUnits,
       isSponsor: !!m,
       sponsorId: m?.sponsorId ?? null,
+      deposits: deposits.map((d) => ({
+        amountUsdCents: d.amountUsdCents,
+        status: d.status,
+        createdAt: d.createdAt,
+      })),
       positions: positions.map((p) => ({
         id: p._id,
         campaignId: p.campaignId,

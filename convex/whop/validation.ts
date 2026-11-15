@@ -19,11 +19,16 @@ export function usdCents(value: unknown): number {
   }
   const [whole, fraction = ""] = money.amount.split(".");
   const cents = Number(whole) * 100 + Number(fraction.padEnd(2, "0"));
-  if (!Number.isSafeInteger(cents)) throw new InvalidPayment("Invalid USD amount");
+  if (!Number.isSafeInteger(cents))
+    throw new InvalidPayment("Invalid USD amount");
   return cents;
 }
 
-export function paymentNotice(value: unknown, webhookId: string, accountId: string) {
+export function paymentNotice(
+  value: unknown,
+  webhookId: string,
+  accountId: string,
+) {
   const event = record(value);
   if (event.id !== webhookId || typeof event.type !== "string") {
     throw new InvalidPayment("Invalid webhook event");
@@ -56,14 +61,26 @@ export type PaymentBinding = {
   sandbox: true;
 };
 
-export function validatePayment(
+type CommonBinding = Pick<
+  PaymentBinding,
+  | "providerCheckoutId"
+  | "providerVariantId"
+  | "amountUsdCents"
+  | "currency"
+  | "sandbox"
+>;
+export type DepositBinding = CommonBinding & {
+  depositId: string;
+  userId: string;
+};
+
+function validatePaidBinding(
   value: unknown,
-  binding: PaymentBinding,
+  binding: CommonBinding,
   paymentId: string,
   accountId: string,
 ): number {
   const payment = record(value);
-  const metadata = record(payment.metadata);
   if (
     binding.sandbox !== true ||
     binding.currency !== "USD" ||
@@ -80,10 +97,7 @@ export function validatePayment(
     !Number.isFinite(Date.parse(payment.paid_at)) ||
     payment.refunded_at != null ||
     payment.auto_refunded !== false ||
-    payment.promo_code_id != null ||
-    metadata.dare_campaign_id !== binding.campaignId ||
-    metadata.dare_sponsor_id !== binding.sponsorId ||
-    metadata.dare_environment !== "sandbox"
+    payment.promo_code_id != null
   ) {
     throw new InvalidPayment("Payment does not match frozen campaign terms");
   }
@@ -92,13 +106,55 @@ export function validatePayment(
     amount !== binding.amountUsdCents ||
     (payment.refunded_amount != null && usdCents(payment.refunded_amount) !== 0)
   ) {
-    throw new InvalidPayment("Payment amount does not match frozen campaign terms");
+    throw new InvalidPayment(
+      "Payment amount does not match frozen campaign terms",
+    );
   }
   return amount;
 }
 
+export function validatePayment(
+  value: unknown,
+  binding: PaymentBinding,
+  paymentId: string,
+  accountId: string,
+): number {
+  const amount = validatePaidBinding(value, binding, paymentId, accountId);
+  const metadata = record(record(value).metadata);
+  if (
+    metadata.dare_campaign_id !== binding.campaignId ||
+    metadata.dare_sponsor_id !== binding.sponsorId ||
+    metadata.dare_environment !== "sandbox" ||
+    metadata.kind === "deposit"
+  )
+    throw new InvalidPayment("Payment does not match frozen campaign terms");
+  return amount;
+}
+
+export function validateDepositPayment(
+  value: unknown,
+  binding: DepositBinding,
+  paymentId: string,
+  accountId: string,
+): number {
+  const amount = validatePaidBinding(value, binding, paymentId, accountId);
+  const metadata = record(record(value).metadata);
+  if (
+    amount < 500 ||
+    amount > 50_000 ||
+    metadata.kind !== "deposit" ||
+    metadata.depositId !== binding.depositId ||
+    metadata.userId !== binding.userId ||
+    metadata.currency !== "USD" ||
+    metadata.sandbox !== "true"
+  )
+    throw new InvalidPayment("Payment does not match frozen deposit terms");
+  return amount;
+}
+
 export function sandboxCheckoutUrl(value: unknown): string {
-  if (typeof value !== "string") throw new InvalidPayment("Checkout URL is missing");
+  if (typeof value !== "string")
+    throw new InvalidPayment("Checkout URL is missing");
   const url = new URL(value);
   if (
     url.protocol !== "https:" ||
