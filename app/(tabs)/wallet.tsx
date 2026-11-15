@@ -3,19 +3,22 @@ import { router } from "expo-router";
 import { useState } from "react";
 import { StyleSheet, Text, View } from "react-native";
 
+import { AddFundsSheet } from "@/components/add-funds";
 import { ActionTiles, BalanceHero, Button, Chip, EmptyState, ListRow, Loading, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { formatCredits, formatUsd } from "@/lib/format";
+import { formatTime, formatUsd } from "@/lib/format";
 import { colors, font } from "@/lib/theme";
 
-type Tab = "open" | "settled" | "rewards";
+type Tab = "open" | "settled" | "rewards" | "deposits";
 type Me = NonNullable<ReturnType<typeof useQuery<typeof api.profiles.me>>>;
 type Position = Me["positions"][number];
+type Deposit = { id?: string; amountUsdCents: number; status?: string; createdAt?: number };
 
 export default function WalletScreen() {
   const { isAuthenticated, isLoading } = useConvexAuth();
   const me = useQuery(api.profiles.me, isAuthenticated ? {} : "skip");
   const [tab, setTab] = useState<Tab>("open");
+  const [adding, setAdding] = useState(false);
 
   if (isLoading || (isAuthenticated && me === undefined)) return <Loading />;
   if (!isAuthenticated || !me) {
@@ -23,28 +26,29 @@ export default function WalletScreen() {
       <Screen title="Wallet">
         <EmptyState
           icon="wallet"
-          title="Free play"
-          accent="credits"
-          body="Sign in to get credits for predictions."
+          title="Your"
+          accent="wallet"
+          body="USD · test payments only, no real money."
           action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
     );
   }
 
+  const deposits = (me as Me & { deposits?: Deposit[] }).deposits;
   const open = me.positions.filter((p) => p.outcome === null);
   const settled = me.positions.filter((p) => p.outcome !== null);
   const list = tab === "open" ? open : settled;
 
   return (
     <Screen title="Wallet">
-      <BalanceHero label="Play credits" value={formatCredits(me.balanceUnits)} caption="Free to play · not money" />
+      <BalanceHero label="USD balance" value={formatUsd(me.balanceUnits, true)} caption="Test payments only, no real money" />
       <ActionTiles
         tiles={[
+          { icon: "add", label: "Add funds", onPress: () => setAdding(true) },
           { icon: "flash-outline", label: "Predict", onPress: () => router.push("/") },
           { icon: "time-outline", label: "Open", onPress: () => setTab("open") },
           { icon: "gift-outline", label: "Rewards", onPress: () => setTab("rewards") },
-          { icon: "megaphone-outline", label: "Studio", onPress: () => router.push("/sponsor") },
         ]}
       />
       <View style={styles.section}>
@@ -53,9 +57,25 @@ export default function WalletScreen() {
           <Chip label={`Open ${open.length}`} selected={tab === "open"} onPress={() => setTab("open")} />
           <Chip label="Settled" selected={tab === "settled"} onPress={() => setTab("settled")} />
           <Chip label="Rewards" selected={tab === "rewards"} onPress={() => setTab("rewards")} />
+          {deposits ? <Chip label="Deposits" selected={tab === "deposits"} onPress={() => setTab("deposits")} /> : null}
         </View>
         <View>
-          {tab === "rewards" ? (
+          {tab === "deposits" ? (
+            !deposits?.length ? (
+              <EmptyState icon="card" title="No deposits yet" />
+            ) : (
+              deposits.map((d, i) => (
+                <ListRow
+                  key={d.id ?? i}
+                  first={i === 0}
+                  icon="arrow-down"
+                  title="Deposit"
+                  subtitle={[d.status ? d.status.replaceAll("_", " ") : null, d.createdAt ? formatTime(d.createdAt) : null].filter(Boolean).join(" · ") || undefined}
+                  value={formatUsd(d.amountUsdCents, true)}
+                />
+              ))
+            )
+          ) : tab === "rewards" ? (
             me.rewards.length === 0 ? (
               <EmptyState icon="gift" title="No rewards yet" />
             ) : (
@@ -79,22 +99,22 @@ export default function WalletScreen() {
           )}
         </View>
       </View>
+      <AddFundsSheet visible={adding} onClose={() => setAdding(false)} />
     </Screen>
   );
 }
 
 function PositionRow({ position, first }: { position: Position; first: boolean }) {
   const won = position.outcome !== null && position.outcome !== "VOID" && position.outcome === position.side;
-  const status =
-    position.outcome === null ? "Open" : position.outcome === "VOID" ? "Refunded" : won ? "Won" : "Lost";
+  const status = position.outcome === null ? "Open" : position.outcome === "VOID" ? "Refunded" : won ? "Won" : "Lost";
   return (
     <ListRow
       first={first}
       icon={position.side === "YES" ? "checkmark" : "close"}
       iconTone={position.side === "YES" ? "positive" : "negative"}
-      title={`${position.side} prediction`}
+      title={position.side === "YES" ? "For" : "Against"}
       subtitle={status}
-      value={formatCredits(position.payoutUnits ?? position.stakeUnits)}
+      value={formatUsd(position.payoutUnits ?? position.stakeUnits, true)}
       valueSub={position.payoutUnits !== null ? "paid" : "staked"}
       tone={won ? "positive" : undefined}
       onPress={() => router.push({ pathname: "/dare/[id]", params: { id: position.campaignId } })}
@@ -105,5 +125,5 @@ function PositionRow({ position, first }: { position: Position; first: boolean }
 const styles = StyleSheet.create({
   section: { gap: 14, marginTop: 8 },
   sectionTitle: { color: colors.text, ...font.title },
-  chips: { flexDirection: "row", gap: 8 },
+  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
 });
