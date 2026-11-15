@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from "react";
 import {
+  Image,
   ActivityIndicator,
   LayoutAnimation,
   Pressable,
@@ -383,22 +384,31 @@ export function EmptyState({
   icon,
   title,
   accent,
+  accentLogo,
   body,
   action,
 }: {
-  icon: IconName;
+  icon: IconName | "logo";
   title: string;
   accent?: string;
+  accentLogo?: boolean;
   body?: string;
   action?: ReactNode;
 }) {
   return (
     <View style={styles.empty}>
-      <IsoArt icon={icon} />
-      <Text style={styles.emptyTitle}>
-        {title}
-        {accent ? <Text style={{ color: colors.accent }}> {accent}</Text> : null}
-      </Text>
+      {icon === "logo" ? (
+        <Image source={require("@/assets/logo-symbol.png")} style={styles.emptyLogo} accessibilityElementsHidden />
+      ) : (
+        <IsoArt icon={icon} />
+      )}
+      <View style={styles.emptyTitleRow}>
+        <Text style={styles.emptyTitle}>
+          {title}
+          {accent ? <Text style={{ color: colors.accent }}> {accent}</Text> : null}
+        </Text>
+        {accentLogo ? <Image source={require("@/assets/logo-wordmark.png")} style={styles.emptyWordmark} accessibilityLabel="Dare" /> : null}
+      </View>
       {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
       {action ? <View style={{ marginTop: 8, alignSelf: "stretch", alignItems: "center" }}>{action}</View> : null}
     </View>
@@ -541,7 +551,10 @@ const styles = StyleSheet.create({
   countdownEnded: { backgroundColor: "rgba(255,69,58,0.85)" },
   countdownText: { fontSize: 13, fontWeight: "600", fontVariant: ["tabular-nums"] },
   empty: { alignItems: "center", gap: 8, paddingVertical: 32, paddingHorizontal: 12 },
-  emptyTitle: { color: colors.text, ...font.title, textAlign: "center", marginTop: 8 },
+  emptyTitle: { color: colors.text, ...font.title, textAlign: "center" },
+  emptyTitleRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, marginTop: 8 },
+  emptyLogo: { width: 64, height: 88, resizeMode: "contain", marginBottom: 8 },
+  emptyWordmark: { width: 72, height: 30, resizeMode: "contain", marginBottom: 2 },
   emptyBody: { color: colors.muted, ...font.callout, lineHeight: 21, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12, backgroundColor: colors.background },
   error: { color: colors.negative, ...font.footnote, lineHeight: 18 },
