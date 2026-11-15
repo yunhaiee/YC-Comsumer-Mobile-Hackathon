@@ -91,7 +91,10 @@ function Checkout({ campaignId }: { campaignId: Id<"campaigns"> }) {
   const open = async () => {
     if (!checkoutUrl) return;
     await openBrowserAsync(checkoutUrl);
-    setMessage({ text: "Checkout closed. Campaign remains inactive until payment is confirmed. This page updates automatically when Whop confirms it.", error: false });
+    setMessage({
+      text: Platform.OS === "web" ? "Finish checkout in the Whop tab. This page updates when Whop confirms payment." : "Checkout closed. Campaign remains inactive until payment is confirmed. This page updates automatically when Whop confirms it.",
+      error: false,
+    });
   };
 
   return (
