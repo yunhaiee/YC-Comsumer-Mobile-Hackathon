@@ -71,7 +71,13 @@ export const recordCheckout = internalMutation({
         q.eq("providerCheckoutId", args.providerCheckoutId),
       )
       .unique();
-    if (other) fail("Checkout already bound");
+    const deposit = await ctx.db
+      .query("deposits")
+      .withIndex("by_providerCheckoutId", (q) =>
+        q.eq("providerCheckoutId", args.providerCheckoutId),
+      )
+      .unique();
+    if (other || deposit) fail("Checkout already bound");
     const patch = {
       providerCheckoutId: args.providerCheckoutId,
       providerVariantId: args.providerVariantId,
@@ -139,6 +145,19 @@ export const activateCampaign = internalMutation({
         q.eq("providerPaymentId", args.providerPaymentId),
       )
       .unique();
+    const depositPayment = await ctx.db
+      .query("depositPayments")
+      .withIndex("by_providerPaymentId", (q) =>
+        q.eq("providerPaymentId", args.providerPaymentId),
+      )
+      .unique();
+    const depositEvent = await ctx.db
+      .query("depositEvents")
+      .withIndex("by_providerEventId", (q) =>
+        q.eq("providerEventId", args.providerEventId),
+      )
+      .unique();
+    if (depositPayment || depositEvent) fail("Payment identity conflict");
     const event = await ctx.db
       .query("paymentEvents")
       .withIndex("by_providerEventId", (q) =>

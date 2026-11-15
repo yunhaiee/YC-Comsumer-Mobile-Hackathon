@@ -11,6 +11,7 @@
 import type * as auth from "../auth.js";
 import type * as campaigns from "../campaigns.js";
 import type * as demo from "../demo.js";
+import type * as deposits from "../deposits.js";
 import type * as http from "../http.js";
 import type * as model from "../model.js";
 import type * as payments from "../payments.js";
@@ -22,6 +23,7 @@ import type * as users from "../users.js";
 import type * as validators from "../validators.js";
 import type * as whop_checkout from "../whop/checkout.js";
 import type * as whop_client from "../whop/client.js";
+import type * as whop_deposits from "../whop/deposits.js";
 import type * as whop_events from "../whop/events.js";
 import type * as whop_validation from "../whop/validation.js";
 import type * as whop_webhook from "../whop/webhook.js";
@@ -36,6 +38,7 @@ declare const fullApi: ApiFromModules<{
   auth: typeof auth;
   campaigns: typeof campaigns;
   demo: typeof demo;
+  deposits: typeof deposits;
   http: typeof http;
   model: typeof model;
   payments: typeof payments;
@@ -47,6 +50,7 @@ declare const fullApi: ApiFromModules<{
   validators: typeof validators;
   "whop/checkout": typeof whop_checkout;
   "whop/client": typeof whop_client;
+  "whop/deposits": typeof whop_deposits;
   "whop/events": typeof whop_events;
   "whop/validation": typeof whop_validation;
   "whop/webhook": typeof whop_webhook;

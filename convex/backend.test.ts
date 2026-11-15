@@ -45,6 +45,33 @@ async function signUp(t: ReturnType<typeof setup>, username: string) {
     tokens: result.tokens,
   };
 }
+async function fundedUser(t: ReturnType<typeof setup>, username: string) {
+  const account = await signUp(t, username);
+  for (let i = 0; i < 2; i++) {
+    const deposit = await account.client.mutation(internal.deposits.prepare, {
+      amountUsdCents: 50000,
+      requestId: `fixture_funding_${i}`,
+    });
+    const key = deposit.depositId.replace(/[^a-zA-Z0-9]/g, "");
+    const providerCheckoutId = `ch_${key}`;
+    await account.client.mutation(internal.deposits.recordCheckout, {
+      depositId: deposit.depositId,
+      providerCheckoutId,
+      providerVariantId: `plan_${key}`,
+      checkoutUrl: `https://sandbox.whop.com/checkout/${providerCheckoutId}/`,
+    });
+    await t.mutation(internal.deposits.complete, {
+      depositId: deposit.depositId,
+      providerCheckoutId,
+      providerPaymentId: `pay_${key}`,
+      providerEventId: `msg_${key}`,
+      amountUsdCents: 50000,
+      currency: "USD",
+      sandbox: true,
+    });
+  }
+  return account;
+}
 async function fixture() {
   const t = setup();
   const sponsor = await signUp(t, "dare-demo-sponsor");
@@ -119,12 +146,76 @@ describe("DARE secured backend", () => {
     vi.unstubAllEnvs();
     vi.unstubAllGlobals();
   });
-  it("uses real Auth v2 sessions and grants once without signup elevation", async () => {
+  it("adds sandboxUSD metadata without renaming or rescaling stored units", async () => {
+    const { t, campaignId, now } = await fixture();
+    const alice = (await fundedUser(t, "alice")).client;
+    const metadata = { currency: "USD", moneyMode: "sandbox" };
+    const profile = await alice.query(api.profiles.me, {});
+    expect(profile).toMatchObject({ ...metadata, balanceUnits: 100000 });
+    const before = await t.run((ctx) => ctx.db.get("users", profile!.id));
+    const quote = await alice.query(api.predictions.quote, {
+      campaignId,
+      side: "YES",
+      stakeUnits: 2500,
+    });
+    expect(quote).toMatchObject({
+      ...metadata,
+      stakeUnits: 2500,
+      estimatedGrossPayoutUnits: 2500,
+      estimatedNetProfitUnits: 0,
+      maximumLossUnits: 2500,
+    });
+    expect(quote.label).toContain("Sandbox USD (demo dollars), not real money");
+    expect(quote.label).toContain("100 units = $1 demo");
+    expect(await t.run((ctx) => ctx.db.get("users", profile!.id))).toEqual(
+      before,
+    );
+    const args = {
+      campaignId,
+      side: "YES" as const,
+      stakeUnits: 2500,
+      requestId: "sandbox_usd1",
+    };
+    const placed = await alice.mutation(api.predictions.place, args);
+    expect(placed).toMatchObject({ ...metadata, balanceUnits: 97500 });
+    expect(await alice.mutation(api.predictions.place, args)).toEqual(placed);
+    expect(
+      await alice.query(api.predictions.getMarket, { campaignId }),
+    ).toMatchObject({
+      ...metadata,
+      yesStakeUnits: 2500,
+      noStakeUnits: 0,
+      position: { stakeUnits: 2500 },
+    });
+    await expect(
+      alice.mutation(api.predictions.place, {
+        ...args,
+        stakeUnits: 100000,
+        requestId: "sandbox_usd2",
+      }),
+    ).rejects.toThrow("Insufficient sandbox USD (demo dollars)");
+    vi.setSystemTime(now + 360_000);
+    await t.mutation(internal.settlement.resolve, { campaignId });
+    expect(await alice.query(api.profiles.me, {})).toMatchObject({
+      ...metadata,
+      balanceUnits: 100000,
+    });
+    const ledger = await t.run((ctx) =>
+      ctx.db
+        .query("ledger")
+        .withIndex("by_userId", (q) => q.eq("userId", profile!.id))
+        .take(10),
+    );
+    expect(ledger.map((row) => row.deltaUnits)).toEqual([
+      50000, 50000, -2500, 2500,
+    ]);
+  });
+  it("uses real Auth v2 sessions with no signup grant or role elevation", async () => {
     const t = setup(),
       alice = await signUp(t, "alice");
     expect(await t.query(api.profiles.me, {})).toBeNull();
     expect(await alice.client.query(api.profiles.me, {})).toMatchObject({
-      balanceUnits: 100000,
+      balanceUnits: 0,
       isSponsor: false,
     });
     const again = await t.mutation(api.auth.signInWithUsernamePassword, {
@@ -133,10 +224,10 @@ describe("DARE secured backend", () => {
     });
     expect(again.status).toBe("complete");
     expect(await alice.client.query(api.profiles.me, {})).toMatchObject({
-      balanceUnits: 100000,
+      balanceUnits: 0,
     });
     expect(await t.run((ctx) => ctx.db.query("ledger").take(5))).toHaveLength(
-      1,
+      0,
     );
     await alice.client.mutation(api.auth.signOut, {
       refreshToken: alice.tokens.refreshToken,
@@ -182,7 +273,7 @@ describe("DARE secured backend", () => {
   });
   it("prevents overdrafts, payload conflicts, role changes, side switches and late stakes", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const alice = (await signUp(t, "alice")).client;
+    const alice = (await fundedUser(t, "alice")).client;
     const args = {
       campaignId,
       side: "YES" as const,
@@ -229,7 +320,7 @@ describe("DARE secured backend", () => {
     await expect(
       sponsor.mutation(api.campaigns.join, { campaignId }),
     ).rejects.toThrow("reviewers");
-    const participant = (await signUp(t, "participant")).client;
+    const participant = (await fundedUser(t, "participant")).client;
     const joined = await participant.mutation(api.campaigns.join, {
       campaignId,
     });
@@ -253,7 +344,7 @@ describe("DARE secured backend", () => {
   });
   it("settles NO once, conserves the entire pool and refunds an unstaked winning side", async () => {
     const { t, campaignId, now } = await fixture();
-    const alice = (await signUp(t, "alice")).client;
+    const alice = (await fundedUser(t, "alice")).client;
     await alice.mutation(api.predictions.place, {
       campaignId,
       side: "YES",
@@ -306,7 +397,7 @@ describe("DARE secured backend", () => {
 
   it("keeps drafts private and refuses sponsor membership escalation and cross-sponsor joining", async () => {
     const { t, campaignId } = await fixture();
-    const other = (await signUp(t, "dare-demo-other")).client;
+    const other = (await fundedUser(t, "dare-demo-other")).client;
     const profile = await other.query(api.profiles.me, {});
     await expect(
       t.mutation(internal.demo.provisionSponsor, {
@@ -349,8 +440,8 @@ describe("DARE secured backend", () => {
 
   it("binds uploads to authenticated owners, rejects replay, and deletes a losing orphan", async () => {
     const { t, campaignId, now } = await fixture();
-    const alice = (await signUp(t, "alice")).client,
-      bob = (await signUp(t, "bob")).client;
+    const alice = (await fundedUser(t, "alice")).client,
+      bob = (await fundedUser(t, "bob")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
     await bob.mutation(api.campaigns.join, { campaignId });
     await expect(
@@ -428,7 +519,7 @@ describe("DARE secured backend", () => {
 
   it("enforces both upload and submission deadlines and expires abandoned storage", async () => {
     const { t, campaignId, now } = await fixture();
-    const alice = (await signUp(t, "alice")).client;
+    const alice = (await fundedUser(t, "alice")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
     vi.setSystemTime(now + 240_000);
     const a = await alice.mutation(api.submissions.generateUploadUrl, {
@@ -474,11 +565,11 @@ describe("DARE secured backend", () => {
 
   it("waits for every timely review, chooses earliest distinct winners, and settles the entire YES pool", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const a = (await signUp(t, "alice")).client,
-      b = (await signUp(t, "bob")).client,
-      c = (await signUp(t, "carol")).client;
-    const yes = (await signUp(t, "yesplayer")).client,
-      no = (await signUp(t, "noplayer")).client;
+    const a = (await fundedUser(t, "alice")).client,
+      b = (await fundedUser(t, "bob")).client,
+      c = (await fundedUser(t, "carol")).client;
+    const yes = (await fundedUser(t, "yesplayer")).client,
+      no = (await fundedUser(t, "noplayer")).client;
     for (const client of [a, b, c])
       await client.mutation(api.campaigns.join, { campaignId });
     await yes.mutation(api.predictions.place, {
@@ -600,8 +691,8 @@ describe("DARE secured backend", () => {
 
   it("voids unresolved evidence at review timeout instead of resolving NO and refunds every stake", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const participant = (await signUp(t, "participant")).client,
-      predictor = (await signUp(t, "predictor")).client;
+    const participant = (await fundedUser(t, "participant")).client,
+      predictor = (await fundedUser(t, "predictor")).client;
     await participant.mutation(api.campaigns.join, { campaignId });
     await predictor.mutation(api.predictions.place, {
       campaignId,
@@ -635,7 +726,7 @@ describe("DARE secured backend", () => {
 
   it("authenticates HTTP ingestion and range playback without revealing storage URLs", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const alice = (await signUp(t, "alice")).client;
+    const alice = (await fundedUser(t, "alice")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
     vi.setSystemTime(now + 240_000);
     const ticket = await alice.mutation(api.submissions.generateUploadUrl, {
@@ -723,8 +814,8 @@ describe("DARE secured backend", () => {
 
   it("resolves reviewed rejection as NO without allocating performer prizes", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const participant = (await signUp(t, "participant")).client,
-      no = (await signUp(t, "noplayer")).client;
+    const participant = (await fundedUser(t, "participant")).client,
+      no = (await fundedUser(t, "noplayer")).client;
     await participant.mutation(api.campaigns.join, { campaignId });
     await no.mutation(api.predictions.place, {
       campaignId,
@@ -755,7 +846,7 @@ describe("DARE secured backend", () => {
 
   it("materializes scheduled cutoffs and leaves unused YES prizes unallocated", async () => {
     const { t, sponsor, campaignId, now } = await fixture();
-    const participant = (await signUp(t, "participant")).client;
+    const participant = (await fundedUser(t, "participant")).client;
     await participant.mutation(api.campaigns.join, { campaignId });
     await vi.advanceTimersByTimeAsync(now + 180_000 - Date.now());
     await t.finishInProgressScheduledFunctions();

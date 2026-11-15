@@ -13,11 +13,18 @@ import {
   requestKey,
   user,
 } from "./model";
-import { positionView, side, viewer } from "./validators";
+import {
+  positionView,
+  SANDBOX_MONEY,
+  sandboxMoney,
+  side,
+  viewer,
+} from "./validators";
 
 export const getMarket = query({
   args: { campaignId: v.id("campaigns") },
   returns: v.object({
+    ...sandboxMoney.fields,
     yesStakeUnits: v.number(),
     noStakeUnits: v.number(),
     position: v.union(positionView, v.null()),
@@ -30,6 +37,7 @@ export const getMarket = query({
     const u = view.role === "predictor" ? await user(ctx) : null;
     const p = u ? await position(ctx, c._id, u._id) : null;
     return {
+      ...SANDBOX_MONEY,
       yesStakeUnits: c.yesStakeUnits,
       noStakeUnits: c.noStakeUnits,
       viewer: view,
@@ -49,6 +57,7 @@ export const getMarket = query({
 export const quote = query({
   args: { campaignId: v.id("campaigns"), side, stakeUnits: v.number() },
   returns: v.object({
+    ...sandboxMoney.fields,
     stakeUnits: v.number(),
     estimatedGrossPayoutUnits: v.number(),
     estimatedNetProfitUnits: v.number(),
@@ -75,12 +84,13 @@ export const quote = query({
         u.balanceUnits >= args.stakeUnits && (!p || p.side === args.side);
     }
     return {
+      ...SANDBOX_MONEY,
       stakeUnits: args.stakeUnits,
       estimatedGrossPayoutUnits: gross,
       estimatedNetProfitUnits: gross - args.stakeUnits,
       maximumLossUnits: args.stakeUnits,
       label:
-        "Variable return if your side wins; pool changes until cutoff. Free play credits only.",
+        "Variable return if your side wins; pool changes until cutoff. Sandbox USD (demo dollars), not real money. 100 units = $1 demo; sandbox deposits only, no withdrawals or redemption.",
       eligible,
     };
   },
@@ -93,6 +103,7 @@ export const place = mutation({
     requestId: v.string(),
   },
   returns: v.object({
+    ...sandboxMoney.fields,
     positionId: v.id("positions"),
     balanceUnits: v.number(),
   }),
@@ -113,7 +124,11 @@ export const place = mutation({
         prior.stakeUnits !== args.stakeUnits
       )
         fail("requestId payload conflict");
-      return { positionId: prior.positionId, balanceUnits: prior.balanceUnits };
+      return {
+        ...SANDBOX_MONEY,
+        positionId: prior.positionId,
+        balanceUnits: prior.balanceUnits,
+      };
     }
     const c = await campaign(ctx, args.campaignId);
     if (!c.published || c.outcome || Date.now() >= c.predictionClosesAt)
@@ -131,7 +146,8 @@ export const place = mutation({
       1_000_000_000,
       "pool units",
     );
-    if (u.balanceUnits < args.stakeUnits) fail("Insufficient play credits");
+    if (u.balanceUnits < args.stakeUnits)
+      fail("Insufficient sandbox USD (demo dollars)");
     const balanceUnits = await credit(
       ctx,
       u._id,
@@ -165,6 +181,6 @@ export const place = mutation({
       positionId,
       balanceUnits,
     });
-    return { positionId, balanceUnits };
+    return { ...SANDBOX_MONEY, positionId, balanceUnits };
   },
 });
