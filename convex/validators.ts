@@ -64,6 +64,7 @@ export const evidenceView = v.object({
   reason: v.union(v.string(), v.null()),
 });
 export const checkoutTerms = v.object({
+  predictionClosesAt: v.number(),
   campaignId: v.id("campaigns"),
   sponsorId: v.id("sponsors"),
   amountUsdCents: v.number(),

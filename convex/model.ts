@@ -123,6 +123,7 @@ export async function eligibility(ctx: QueryCtx, c: Doc<"campaigns">) {
       live &&
       !c.joinsClosed &&
       !role &&
+      !m &&
       c.participantCount < LIMITS.participants,
     canPredict:
       live &&
