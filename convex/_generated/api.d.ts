@@ -20,6 +20,11 @@ import type * as settlement from "../settlement.js";
 import type * as submissions from "../submissions.js";
 import type * as users from "../users.js";
 import type * as validators from "../validators.js";
+import type * as whop_checkout from "../whop/checkout.js";
+import type * as whop_client from "../whop/client.js";
+import type * as whop_events from "../whop/events.js";
+import type * as whop_validation from "../whop/validation.js";
+import type * as whop_webhook from "../whop/webhook.js";
 
 import type {
   ApiFromModules,
@@ -40,6 +45,11 @@ declare const fullApi: ApiFromModules<{
   submissions: typeof submissions;
   users: typeof users;
   validators: typeof validators;
+  "whop/checkout": typeof whop_checkout;
+  "whop/client": typeof whop_client;
+  "whop/events": typeof whop_events;
+  "whop/validation": typeof whop_validation;
+  "whop/webhook": typeof whop_webhook;
 }>;
 
 /**

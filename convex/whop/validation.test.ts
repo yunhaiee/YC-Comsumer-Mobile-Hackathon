@@ -43,6 +43,10 @@ describe("sandbox payment validation", () => {
     expect(validate(payment())).toBe(2500);
   });
 
+  it("validates the frozen total when inclusive tax reduces the pre-tax subtotal", () => {
+    expect(validate({ ...payment(), subtotal: money("22.73"), tax_amount: money("2.27"), tax_behavior: "inclusive" })).toBe(2500);
+  });
+
   it.each(["open", "pending", "void", "uncollectible", "canceled"])("refuses %s payments", (status) => {
     expect(() => validate({ ...payment(), status })).toThrow();
   });
@@ -50,7 +54,6 @@ describe("sandbox payment validation", () => {
   it.each([
     { total: money("24.99") },
     { total: money("25.01") },
-    { subtotal: money("30.00") },
     { currency: "eur" },
     { total: money("25.00", "eur") },
     { id: "pay_other" },

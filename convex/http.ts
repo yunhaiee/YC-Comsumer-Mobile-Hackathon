@@ -4,13 +4,78 @@ import { internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { LIMITS } from "./model";
 import { ALLOWED_TYPES } from "./submissions";
+import { whopWebhook } from "./whop/webhook";
 
 const http = httpRouter();
+http.route({ path: "/whop/webhook", method: "POST", handler: whopWebhook });
 const headers = {
   "Access-Control-Allow-Origin": "*",
-  "Access-Control-Allow-Headers": "Authorization, Content-Type",
-  "Access-Control-Allow-Methods": "POST, OPTIONS",
+  "Access-Control-Allow-Headers": "Authorization, Content-Type, Range",
+  "Access-Control-Allow-Methods": "GET, POST, OPTIONS",
+  "Access-Control-Expose-Headers":
+    "Content-Length, Content-Range, Accept-Ranges, Content-Type",
 };
+http.route({
+  path: "/evidence/media",
+  method: "OPTIONS",
+  handler: httpAction(async () => new Response(null, { status: 204, headers })),
+});
+const media = httpAction(async (ctx, request) => {
+  const privateHeaders = { ...headers, "Cache-Control": "private, no-store" };
+  if (!request.headers.get("Authorization")?.startsWith("Bearer "))
+    return new Response("Sign in required", {
+      status: 401,
+      headers: privateHeaders,
+    });
+  const submissionId = new URL(request.url).searchParams.get("submissionId");
+  if (!submissionId)
+    return new Response("Evidence not found", {
+      status: 404,
+      headers: privateHeaders,
+    });
+  const range = request.headers.get("Range");
+  if (range && !/^bytes=(?:\d+-\d*|-\d+)$/.test(range))
+    return new Response("Invalid range", {
+      status: 416,
+      headers: privateHeaders,
+    });
+  try {
+    const storageId: Id<"_storage"> = await ctx.runQuery(
+      internal.submissions.authorizeMedia,
+      { submissionId: submissionId as Id<"submissions"> },
+    );
+    const storageUrl = await ctx.storage.getUrl(storageId);
+    if (!storageUrl)
+      return new Response("Evidence not found", {
+        status: 404,
+        headers: privateHeaders,
+      });
+    const upstream = await fetch(storageUrl, {
+      method: request.method,
+      headers: range ? { Range: range } : {},
+    });
+    const responseHeaders = new Headers(privateHeaders);
+    for (const name of [
+      "Content-Type",
+      "Content-Length",
+      "Content-Range",
+      "Accept-Ranges",
+    ]) {
+      const value = upstream.headers.get(name);
+      if (value) responseHeaders.set(name, value);
+    }
+    return new Response(request.method === "HEAD" ? null : upstream.body, {
+      status: upstream.status,
+      headers: responseHeaders,
+    });
+  } catch {
+    return new Response("Evidence unavailable", {
+      status: 403,
+      headers: privateHeaders,
+    });
+  }
+});
+http.route({ path: "/evidence/media", method: "GET", handler: media });
 http.route({
   path: "/evidence/upload",
   method: "OPTIONS",

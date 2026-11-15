@@ -2,6 +2,7 @@ import { v } from "convex/values";
 import {
   env,
   internalMutation,
+  internalQuery,
   mutation,
   query,
   type MutationCtx,
@@ -224,9 +225,19 @@ export const listForReview = query({
         submittedAt: s.submittedAt,
         status: s.status,
         reason: s.reason,
-        mediaUrl: await ctx.storage.getUrl(s.storageId),
+        mediaUrl: `${env.CONVEX_SITE_URL}/evidence/media?submissionId=${encodeURIComponent(s._id)}`,
       })),
     );
+  },
+});
+export const authorizeMedia = internalQuery({
+  args: { submissionId: v.id("submissions") },
+  returns: v.id("_storage"),
+  handler: async (ctx, args) => {
+    const s = await ctx.db.get("submissions", args.submissionId);
+    if (!s) fail("Evidence not found");
+    await reviewer(ctx, await campaign(ctx, s.campaignId));
+    return s.storageId;
   },
 });
 export const review = mutation({
