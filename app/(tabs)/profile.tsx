@@ -21,7 +21,7 @@ export default function ProfileScreen() {
     return (
       <Screen title="Profile">
         <EmptyState
-          icon="person"
+          icon="logo"
           title="Join the"
           accent="dare"
           body="Take dares or predict in USD."

@@ -2,6 +2,7 @@ import { Ionicons } from "@expo/vector-icons";
 import { router } from "expo-router";
 import { useState, type ComponentProps, type PropsWithChildren, type ReactNode } from "react";
 import {
+  Image,
   ActivityIndicator,
   LayoutAnimation,
   Pressable,
@@ -316,7 +317,7 @@ export function ActionTiles({ tiles }: { tiles: { icon: IconName; label: string;
   );
 }
 
-export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) {
+export function IsoArt({ icon, size = 120 }: { icon: IconName | "logo"; size?: number }) {
   const tile = size * 0.62;
   const diamond = (offset: number, color: string, scale = 1) => ({
     position: "absolute" as const,
@@ -340,7 +341,11 @@ export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) 
       <View style={diamond(-size * 0.06, "#E5E5EA", 0.55)} />
       <View style={{ position: "absolute", left: 0, right: 0, top: size * 0.06, alignItems: "center" }}>
         <View style={styles.isoBadge}>
-          <Ionicons name={icon} size={size * 0.24} color={colors.accent} />
+          {icon === "logo" ? (
+            <Image source={require("@/assets/logo-symbol.png")} style={{ width: size * 0.22, height: size * 0.3, resizeMode: "contain" }} />
+          ) : (
+            <Ionicons name={icon} size={size * 0.24} color={colors.accent} />
+          )}
         </View>
       </View>
     </View>
@@ -386,7 +391,7 @@ export function EmptyState({
   body,
   action,
 }: {
-  icon: IconName;
+  icon: IconName | "logo";
   title: string;
   accent?: string;
   body?: string;
