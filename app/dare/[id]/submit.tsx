@@ -4,14 +4,14 @@ import * as ImagePicker from "expo-image-picker";
 import { router, useLocalSearchParams } from "expo-router";
 import { useVideoPlayer, VideoView } from "expo-video";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { StyleSheet, Text, View } from "react-native";
 
-import { Button, Card, CenterMessage, ErrorText, Loading, Pill, SectionTitle, text } from "@/components/ui";
+import { Button, Card, CenterMessage, ErrorText, ListRow, Loading, NavHeader, Pill, Screen, text } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNow } from "@/hooks/useNow";
 import { errorMessage, formatCountdown, formatTime, newRequestId } from "@/lib/format";
-import { colors, radius } from "@/lib/theme";
+import { colors, font, radius } from "@/lib/theme";
 
 const MAX_BYTES = 25 * 1024 * 1024;
 const TYPES = ["video/mp4", "video/quicktime", "video/webm"];
@@ -103,28 +103,28 @@ export default function SubmitEvidenceScreen() {
   const canSubmit = campaign.viewer.canSubmit;
 
   return (
-    <ScrollView contentContainerStyle={styles.content}>
+    <Screen tabBar={false}>
+      <NavHeader title="Evidence" />
       <Text style={styles.title}>{campaign.title}</Text>
       <Pill
         label={now < campaign.deadlineAt ? `Evidence due in ${formatCountdown(campaign.deadlineAt, now)}` : "Evidence closed"}
         tone={now < campaign.deadlineAt ? "positive" : "muted"}
       />
-      <Card>
-        <SectionTitle>Criteria</SectionTitle>
+      <View style={{ gap: 6 }}>
+        <Text style={styles.blockTitle}>Criteria</Text>
         <Text style={text.body}>{campaign.criteria}</Text>
         <Text style={text.small}>
-          {campaign.sponsorName} reviews every submission. Earliest approved completions win the {campaign.winnerCount}{" "}
-          {campaign.winnerCount === 1 ? "prize" : "prizes"}.
+          {campaign.sponsorName} reviews each video. Earliest approved {campaign.winnerCount === 1 ? "completion wins" : `${campaign.winnerCount} win`}.
         </Text>
-      </Card>
+      </View>
 
       {canSubmit ? (
         <Card>
-          <SectionTitle>Your evidence</SectionTitle>
-          {picked ? <Preview uri={picked.uri} /> : <Text style={text.small}>One continuous video, up to 25 MB.</Text>}
+          <Text style={styles.blockTitle}>Your video</Text>
+          {picked ? <Preview uri={picked.uri} /> : <Text style={text.small}>One continuous clip, up to 25 MB.</Text>}
           <View style={styles.row}>
-            <Button label="Record" variant="secondary" onPress={() => choose("camera")} disabled={stage !== "idle"} style={{ flex: 1 }} />
-            <Button label="Choose video" variant="secondary" onPress={() => choose("library")} disabled={stage !== "idle"} style={{ flex: 1 }} />
+            <Button label="Record" icon="videocam-outline" variant="secondary" onPress={() => choose("camera")} disabled={stage !== "idle"} style={{ flex: 1 }} />
+            <Button label="Library" icon="images-outline" variant="secondary" onPress={() => choose("library")} disabled={stage !== "idle"} style={{ flex: 1 }} />
           </View>
           <ErrorText message={error} />
           {done ? <Text style={[text.strong, { color: colors.positive }]}>Submitted. The sponsor will review it.</Text> : null}
@@ -147,18 +147,23 @@ export default function SubmitEvidenceScreen() {
         </Card>
       )}
 
-      <Card>
-        <SectionTitle>Submissions</SectionTitle>
+      <View>
+        <Text style={styles.blockTitle}>Submissions</Text>
         {mine === undefined ? (
           <Text style={text.small}>Loading…</Text>
         ) : mine.length === 0 ? (
-          <Text style={text.small}>Nothing submitted yet.</Text>
+          <Text style={[text.small, { marginTop: 6 }]}>Nothing submitted yet.</Text>
         ) : (
-          mine.map((s) => (
+          mine.map((s, i) => (
             <View key={s.id} style={styles.submission}>
-              <View style={{ flex: 1, gap: 4 }}>
-                <Text style={text.strong}>{formatTime(s.submittedAt)}</Text>
-                {s.reason ? <Text style={text.small}>{s.reason}</Text> : null}
+              <View style={{ flex: 1 }}>
+                <ListRow
+                first={i === 0}
+                icon={s.status === "approved" ? "checkmark" : s.status === "rejected" ? "close" : "hourglass-outline"}
+                iconTone={s.status === "approved" ? "positive" : s.status === "rejected" ? "negative" : undefined}
+                title={formatTime(s.submittedAt)}
+                subtitle={s.reason ?? undefined}
+                />
               </View>
               <Pill
                 label={s.status === "approved" ? "Verified" : s.status === "rejected" ? "Rejected" : "In review"}
@@ -167,8 +172,8 @@ export default function SubmitEvidenceScreen() {
             </View>
           ))
         )}
-      </Card>
-    </ScrollView>
+      </View>
+    </Screen>
   );
 }
 
@@ -182,9 +187,9 @@ function Preview({ uri }: { uri: string }) {
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, gap: 16, paddingBottom: 48, maxWidth: 680, width: "100%", alignSelf: "center" },
-  title: { color: colors.text, fontSize: 26, fontWeight: "900" },
+  title: { color: colors.text, ...font.largeTitle, fontSize: 28 },
+  blockTitle: { color: colors.text, ...font.headline },
   row: { flexDirection: "row", gap: 10 },
   video: { width: "100%", aspectRatio: 9 / 16, maxHeight: 420, borderRadius: radius.md, backgroundColor: colors.background },
-  submission: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  submission: { flexDirection: "row", alignItems: "center", gap: 8 },
 });

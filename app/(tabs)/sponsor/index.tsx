@@ -24,7 +24,6 @@ export default function SponsorDashboard() {
           <Card>
             <View style={styles.between}>
               <Status state={campaign.state} />
-              {campaign.isDemo ? <Text style={styles.eyebrow}>DEMO</Text> : null}
             </View>
             <Text style={styles.heading}>{campaign.title}</Text>
             <Text style={styles.body}>

@@ -10,20 +10,11 @@ export default function RootLayout() {
     <SafeAreaProvider style={{ backgroundColor: colors.background }}>
       <StatusBar style="light" />
       <AppProviders>
-        <Stack
-          screenOptions={{
-            headerStyle: { backgroundColor: colors.background },
-            headerTintColor: colors.text,
-            headerTitleStyle: { fontWeight: "800" },
-            headerShadowVisible: false,
-            contentStyle: { backgroundColor: colors.background },
-          }}
-        >
-          <Stack.Screen name="index" options={{ headerShown: false }} />
-          <Stack.Screen name="sign-in" options={{ title: "", presentation: "modal" }} />
-          <Stack.Screen name="dare/[id]/index" options={{ title: "Dare" }} />
-          <Stack.Screen name="dare/[id]/submit" options={{ title: "Submit evidence" }} />
-          <Stack.Screen name="profile" options={{ title: "Wallet & profile" }} />
+        <Stack screenOptions={{ headerShown: false, contentStyle: { backgroundColor: colors.background } }}>
+          <Stack.Screen name="(tabs)" />
+          <Stack.Screen name="sign-in" options={{ presentation: "modal" }} />
+          <Stack.Screen name="dare/[id]/index" />
+          <Stack.Screen name="dare/[id]/submit" />
         </Stack>
       </AppProviders>
     </SafeAreaProvider>
