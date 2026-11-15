@@ -1,4 +1,4 @@
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 import { SafeAreaView } from "react-native-safe-area-context";
 
 import { colors } from "@/lib/theme";
@@ -8,7 +8,7 @@ export default function FoundationScreen() {
 
   return (
     <SafeAreaView style={styles.screen}>
-      <View style={styles.content}>
+      <ScrollView contentContainerStyle={styles.content}>
         <View style={styles.mark}>
           <Text style={styles.markText}>D</Text>
         </View>
@@ -27,7 +27,7 @@ export default function FoundationScreen() {
         <Text style={styles.note}>
           This is the shared app foundation, not a live campaign. Predictions will use free play credits only.
         </Text>
-      </View>
+      </ScrollView>
     </SafeAreaView>
   );
 }
@@ -35,7 +35,7 @@ export default function FoundationScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: colors.background },
   content: {
-    flex: 1,
+    flexGrow: 1,
     justifyContent: "center",
     alignSelf: "center",
     width: "100%",
