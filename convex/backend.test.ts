@@ -58,9 +58,9 @@ async function fixture() {
     templateId: "balance-object",
     winnerCount: 2,
     rewardUsdCents: 1000,
-    predictionClosesAt: now + 60_000,
-    attemptStartsAt: now + 120_000,
-    deadlineAt: now + 240_000,
+    predictionClosesAt: now + 180_000,
+    attemptStartsAt: now + 240_000,
+    deadlineAt: now + 360_000,
   });
   await sponsor.client.mutation(internal.payments.recordCheckout, {
     campaignId,
@@ -239,7 +239,7 @@ describe("DARE secured backend", () => {
     await expect(
       participant.mutation(api.predictions.place, args),
     ).rejects.toThrow("Participants");
-    vi.setSystemTime(now + 60_000);
+    vi.setSystemTime(now + 180_000);
     await expect(
       alice.mutation(api.predictions.place, {
         ...args,
@@ -263,7 +263,7 @@ describe("DARE secured backend", () => {
     expect(
       await t.mutation(internal.settlement.resolve, { campaignId }),
     ).toBeNull();
-    vi.setSystemTime(now + 240_000);
+    vi.setSystemTime(now + 360_000);
     const resolved = await t.mutation(internal.settlement.resolve, {
       campaignId,
     });
@@ -356,7 +356,7 @@ describe("DARE secured backend", () => {
     await expect(
       alice.mutation(api.submissions.generateUploadUrl, { campaignId }),
     ).rejects.toThrow("closed");
-    vi.setSystemTime(now + 120_000);
+    vi.setSystemTime(now + 240_000);
     const ticket = await alice.mutation(api.submissions.generateUploadUrl, {
       campaignId,
     });
@@ -430,7 +430,7 @@ describe("DARE secured backend", () => {
     const { t, campaignId, now } = await fixture();
     const alice = (await signUp(t, "alice")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
-    vi.setSystemTime(now + 120_000);
+    vi.setSystemTime(now + 240_000);
     const a = await alice.mutation(api.submissions.generateUploadUrl, {
       campaignId,
     });
@@ -450,7 +450,7 @@ describe("DARE secured backend", () => {
       ticketId: aId,
       storageId: stored,
     });
-    vi.setSystemTime(now + 240_000);
+    vi.setSystemTime(now + 360_000);
     await expect(
       alice.mutation(api.submissions.submit, {
         campaignId,
@@ -499,14 +499,14 @@ describe("DARE secured backend", () => {
       stakeUnits: 103,
       requestId: "no_stake01",
     });
-    vi.setSystemTime(now + 120_000);
+    vi.setSystemTime(now + 240_000);
     const submissions = [
       await evidence(t, a, campaignId, "alice_sub1"),
       await evidence(t, a, campaignId, "alice_sub2"),
       await evidence(t, b, campaignId, "bob_sub001"),
       await evidence(t, c, campaignId, "carol_sub1"),
     ];
-    const tiedAt = now + 130_000;
+    const tiedAt = now + 250_000;
     await t.run(async (ctx) => {
       for (const s of submissions)
         await ctx.db.patch("submissions", s.submissionId, {
@@ -521,7 +521,7 @@ describe("DARE secured backend", () => {
         requestId: "review_bad1",
       }),
     ).rejects.toThrow("permission");
-    vi.setSystemTime(now + 240_000);
+    vi.setSystemTime(now + 360_000);
     for (let i = 0; i < submissions.length - 1; i++)
       await sponsor.mutation(api.submissions.review, {
         submissionId: submissions[i].submissionId,
@@ -609,13 +609,13 @@ describe("DARE secured backend", () => {
       stakeUnits: 999,
       requestId: "prediction1",
     });
-    vi.setSystemTime(now + 120_000);
-    const submitted = await evidence(t, participant, campaignId, "submission1");
     vi.setSystemTime(now + 240_000);
+    const submitted = await evidence(t, participant, campaignId, "submission1");
+    vi.setSystemTime(now + 360_000);
     expect(
       await t.mutation(internal.settlement.resolve, { campaignId }),
     ).toBeNull();
-    vi.setSystemTime(now + 240_000 + 86400_000);
+    vi.setSystemTime(now + 360_000 + 86400_000);
     await expect(
       sponsor.mutation(api.submissions.review, {
         submissionId: submitted.submissionId,
@@ -637,7 +637,7 @@ describe("DARE secured backend", () => {
     const { t, sponsor, campaignId, now } = await fixture();
     const alice = (await signUp(t, "alice")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
-    vi.setSystemTime(now + 120_000);
+    vi.setSystemTime(now + 240_000);
     const ticket = await alice.mutation(api.submissions.generateUploadUrl, {
       campaignId,
     });
@@ -732,7 +732,7 @@ describe("DARE secured backend", () => {
       stakeUnits: 50,
       requestId: "prediction1",
     });
-    vi.setSystemTime(now + 120_000);
+    vi.setSystemTime(now + 240_000);
     const submitted = await evidence(t, participant, campaignId, "submission1");
     await sponsor.mutation(api.submissions.review, {
       submissionId: submitted.submissionId,
@@ -743,7 +743,7 @@ describe("DARE secured backend", () => {
     expect(
       await t.mutation(internal.settlement.resolve, { campaignId }),
     ).toBeNull();
-    vi.setSystemTime(now + 240_000);
+    vi.setSystemTime(now + 360_000);
     expect(
       await t.mutation(internal.settlement.resolve, { campaignId }),
     ).toMatchObject({ outcome: "NO" });
@@ -757,7 +757,7 @@ describe("DARE secured backend", () => {
     const { t, sponsor, campaignId, now } = await fixture();
     const participant = (await signUp(t, "participant")).client;
     await participant.mutation(api.campaigns.join, { campaignId });
-    await vi.advanceTimersByTimeAsync(now + 60_000 - Date.now());
+    await vi.advanceTimersByTimeAsync(now + 180_000 - Date.now());
     await t.finishInProgressScheduledFunctions();
     expect(
       await participant.query(api.campaigns.get, { campaignId }),

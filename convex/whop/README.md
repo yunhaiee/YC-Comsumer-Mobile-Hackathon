@@ -27,6 +27,10 @@ If Whop returns `400` with `idempotency_key_mismatch`, the first checkout attemp
 
 The sandbox charge represents `winnerCount * rewardUsdCents`, with zero DARE platform fee. Whop may separately display provider/buyer fees; the validated payment `total` excludes those buyer fees. Participant rewards are represented allocations, not transferred money. Sandbox payouts are unavailable.
 
+New campaign prediction cutoffs require at least three minutes of lead time. Checkout creation and cached checkout retrieval are refused when two minutes or less remain before the cutoff. These guards do not change existing campaign deadlines and cannot prevent payment through a provider URL already opened elsewhere.
+
+A verified payment first received at or after the prediction cutoff is recorded exactly once with `disposition: "refund_required"`. Its unpublished campaign becomes terminal `void`, with `outcome: "VOID"` and `paymentIssue: "late_payment_refund_required"`; it never opens participation or predictions. The webhook acknowledges the audit record with200 instead of repeatedly retrying. This is an operator refund requirement, not a completed or automatic refund; no provider refund request or play-credit refund ledger entry is created. Existing activated payment receipts continue to replay as activated after their deadlines. Older payment rows without a disposition are treated as activated.
+
 ## Verification
 
 Run `npm test -- convex/whop`, `npm run typecheck`, and `npm run lint` after integrating TK's generated backend files. Unit tests exercise signed raw payloads, forged/stale signatures, cancelled/failed events, exact USD conversion, frozen binding mismatch and refund rejection. Integration tests exercise real Convex functions, Auth2 core-session fixtures and atomic payment writes, with only the external Whop HTTP responses mocked. They verify owner authorization, frozen checkout terms, duplicate delivery and failed-payment rejection. They do not test password hashing or claim a live Whop transaction.

@@ -18,6 +18,7 @@ import {
 } from "./model";
 import { campaignSummary, templateId, viewer } from "./validators";
 
+const MIN_CAMPAIGN_LEAD_MS = 180_000;
 const TEMPLATES = {
   "balance-object": {
     title: "The 30-second balance challenge",
@@ -65,7 +66,7 @@ export const templates = query({
       maxWinnerCount: 20,
       minRewardUsdCents: 100,
       maxRewardUsdCents: 100000,
-      minLeadMs: 60000,
+      minLeadMs: MIN_CAMPAIGN_LEAD_MS,
       maxStartLeadMs: 2592000000,
       minAttemptDurationMs: 60000,
       maxDeadlineLeadMs: 2678400000,
@@ -93,7 +94,7 @@ export const createDraft = mutation({
     const now = Date.now();
     integer(
       args.predictionClosesAt,
-      now + 60_000,
+      now + MIN_CAMPAIGN_LEAD_MS,
       now + 30 * 86400_000,
       "predictionClosesAt",
     );

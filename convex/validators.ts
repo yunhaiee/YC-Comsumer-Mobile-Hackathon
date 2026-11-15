@@ -18,6 +18,7 @@ export const templateId = v.union(
   v.literal("paper-plane"),
 );
 export const campaignSummary = v.object({
+  paymentIssue: v.union(v.literal("late_payment_refund_required"), v.null()),
   submissionCount: v.number(),
   pendingCount: v.number(),
   id: v.id("campaigns"),

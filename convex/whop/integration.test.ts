@@ -158,6 +158,79 @@ async function state(f: Awaited<ReturnType<typeof fixture>>) {
 }
 
 describe("sandbox checkout through real Convex functions", () => {
+  it("advertises and enforces the same three-minute minimum for new drafts", async () => {
+    const f = await fixture();
+    expect(
+      (await f.t.query(api.campaigns.templates, {})).limits.minLeadMs,
+    ).toBe(180_000);
+    const base = {
+      templateId: "paper-plane" as const,
+      winnerCount: 1,
+      rewardUsdCents: 1000,
+      attemptStartsAt: Date.now() + 600_000,
+      deadlineAt: Date.now() + 1_200_000,
+    };
+    await expect(
+      f.sponsor.mutation(api.campaigns.createDraft, {
+        ...base,
+        predictionClosesAt: Date.now() + 60_000,
+      }),
+    ).rejects.toThrow("Invalid predictionClosesAt");
+    await expect(
+      f.sponsor.mutation(api.campaigns.createDraft, {
+        ...base,
+        predictionClosesAt: Date.now() + 179_999,
+      }),
+    ).rejects.toThrow("Invalid predictionClosesAt");
+    expect(
+      await f.sponsor.mutation(api.campaigns.createDraft, {
+        ...base,
+        predictionClosesAt: Date.now() + 181_000,
+      }),
+    ).toBeTruthy();
+  });
+  it.each([120_000, 119_999, 0])(
+    "refuses checkout with %i milliseconds before cutoff without contacting Whop",
+    async (remaining) => {
+      const f = await boundFixture();
+      const cutoff = (await state(f)).campaign!.predictionClosesAt;
+      vi.setSystemTime(cutoff - remaining);
+      const fetcher = vi.fn();
+      vi.stubGlobal("fetch", fetcher);
+      await expect(
+        f.sponsor.action(api.whop.checkout.create, {
+          campaignId: f.campaignId,
+        }),
+      ).rejects.toThrow(
+        "Not enough time to complete payment. Create a campaign with a later prediction cutoff.",
+      );
+      expect(fetcher).not.toHaveBeenCalled();
+      expect((await state(f)).payments).toHaveLength(0);
+    },
+  );
+
+  it("refuses a new checkout inside the safety margin but preserves a cached URL outside it", async () => {
+    const fresh = await fixture();
+    const cutoff = (await state(fresh)).campaign!.predictionClosesAt;
+    vi.setSystemTime(cutoff - 119_000);
+    const fetcher = vi.fn();
+    vi.stubGlobal("fetch", fetcher);
+    await expect(
+      fresh.sponsor.action(api.whop.checkout.create, {
+        campaignId: fresh.campaignId,
+      }),
+    ).rejects.toThrow("Not enough time to complete payment");
+    expect(fetcher).not.toHaveBeenCalled();
+    const cached = await boundFixture();
+    const cachedCutoff = (await state(cached)).campaign!.predictionClosesAt;
+    vi.setSystemTime(cachedCutoff - 120_001);
+    expect(
+      await cached.sponsor.action(api.whop.checkout.create, {
+        campaignId: cached.campaignId,
+      }),
+    ).toEqual({ checkoutUrl, sandbox: true });
+    expect(fetcher).not.toHaveBeenCalled();
+  });
   it("explains verified idempotency payload conflicts without changing the checkout key", async () => {
     const f = await fixture();
     const log = vi.spyOn(console, "error").mockImplementation(() => {});
@@ -405,7 +478,7 @@ describe("sandbox checkout through real Convex functions", () => {
     vi.stubGlobal("fetch", fetcher);
     await expect(
       f.sponsor.action(api.whop.checkout.create, { campaignId: f.campaignId }),
-    ).rejects.toThrow("The payment deadline has passed");
+    ).rejects.toThrow("Not enough time to complete payment");
     expect(fetcher).not.toHaveBeenCalled();
     expect((await state(f)).payments).toHaveLength(0);
   });
@@ -427,6 +500,213 @@ describe("sandbox checkout through real Convex functions", () => {
 });
 
 describe("signed webhook to atomic activation", () => {
+  it("records a verified late payment once, marks refund required, and acknowledges later events", async () => {
+    const f = await boundFixture();
+    const beforeLedger = await f.t.run((ctx) =>
+      ctx.db.query("ledger").take(10),
+    );
+    vi.setSystemTime((await state(f)).campaign!.predictionClosesAt);
+    vi.stubGlobal(
+      "fetch",
+      vi.fn(async () => Response.json(providerPayment(f))),
+    );
+    const request = await signedRequest();
+    const responses = await Promise.all([
+      f.t.fetch("/whop/webhook", request),
+      f.t.fetch("/whop/webhook", request),
+    ]);
+    expect(responses.map((r) => r.status)).toEqual([200, 200]);
+    expect(
+      (
+        await f.t.fetch(
+          "/whop/webhook",
+          await signedRequest("payment.succeeded", "msg_late_second"),
+        )
+      ).status,
+    ).toBe(200);
+    const result = await state(f);
+    expect(result.campaign).toMatchObject({
+      state: "void",
+      outcome: "VOID",
+      published: false,
+      participantCount: 0,
+      positionCount: 0,
+      yesStakeUnits: 0,
+      noStakeUnits: 0,
+      paymentIssue: "late_payment_refund_required",
+    });
+    expect(result.payments).toHaveLength(1);
+    expect(result.payments[0]).toMatchObject({
+      disposition: "refund_required",
+      amountUsdCents: 2500,
+      currency: "USD",
+      sandbox: true,
+    });
+    expect(result.events).toHaveLength(2);
+    expect(await f.t.run((ctx) => ctx.db.query("ledger").take(10))).toEqual(
+      beforeLedger,
+    );
+    expect(
+      await f.sponsor.query(api.campaigns.get, { campaignId: f.campaignId }),
+    ).toMatchObject({
+      paymentIssue: "late_payment_refund_required",
+      viewer: { canJoin: false, canPredict: false },
+    });
+    expect(
+      await f.t.query(api.campaigns.get, { campaignId: f.campaignId }),
+    ).toBeNull();
+    await expect(
+      f.sponsor.mutation(api.campaigns.join, { campaignId: f.campaignId }),
+    ).rejects.toThrow("closed");
+    await expect(
+      f.sponsor.mutation(api.predictions.place, {
+        campaignId: f.campaignId,
+        side: "YES",
+        stakeUnits: 1,
+        requestId: "late_stake1",
+      }),
+    ).rejects.toThrow("closed");
+  });
+
+  it("preserves activated receipts after the deadline including legacy rows without disposition", async () => {
+    const f = await boundFixture();
+    const args = {
+      campaignId: f.campaignId,
+      providerCheckoutId: "ch_test",
+      providerPaymentId: "pay_test",
+      providerEventId: "msg_first",
+      amountUsdCents: 2500,
+      currency: "USD" as const,
+      sandbox: true as const,
+    };
+    const activated = await f.t.mutation(
+      internal.payments.activateCampaign,
+      args,
+    );
+    await f.t.run((ctx) =>
+      ctx.db.patch("payments", activated.paymentId, { disposition: undefined }),
+    );
+    vi.setSystemTime((await state(f)).campaign!.deadlineAt + 1);
+    expect(
+      await f.t.mutation(internal.payments.activateCampaign, {
+        ...args,
+        providerEventId: "msg_later",
+      }),
+    ).toEqual(activated);
+    expect((await state(f)).campaign?.paymentIssue).toBeUndefined();
+    expect((await state(f)).payments).toHaveLength(1);
+  });
+
+  it("enforces payment and event uniqueness across late and activated receipts", async () => {
+    const f = await boundFixture();
+    vi.setSystemTime((await state(f)).campaign!.predictionClosesAt);
+    const lateArgs = {
+      campaignId: f.campaignId,
+      providerCheckoutId: "ch_test",
+      providerPaymentId: "pay_late",
+      providerEventId: "msg_late",
+      amountUsdCents: 2500,
+      currency: "USD" as const,
+      sandbox: true as const,
+    };
+    const late = await f.t.mutation(
+      internal.payments.activateCampaign,
+      lateArgs,
+    );
+    expect(late).toMatchObject({
+      state: "void",
+      disposition: "refund_required",
+    });
+    expect(
+      await f.t.mutation(internal.payments.activateCampaign, lateArgs),
+    ).toEqual(late);
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        ...lateArgs,
+        amountUsdCents: 2501,
+      }),
+    ).rejects.toThrow("terms mismatch");
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        ...lateArgs,
+        providerCheckoutId: "ch_wrong",
+      }),
+    ).rejects.toThrow("terms mismatch");
+    const secondId = await f.sponsor.mutation(api.campaigns.createDraft, {
+      templateId: "paper-plane",
+      winnerCount: 2,
+      rewardUsdCents: 1250,
+      predictionClosesAt: Date.now() + 600_000,
+      attemptStartsAt: Date.now() + 600_000,
+      deadlineAt: Date.now() + 1_200_000,
+    });
+    await f.sponsor.mutation(internal.payments.recordCheckout, {
+      campaignId: secondId,
+      providerCheckoutId: "ch_second",
+      providerVariantId: "plan_second",
+      checkoutUrl: "https://sandbox.whop.com/checkout/ch_second/",
+    });
+    const secondArgs = {
+      ...lateArgs,
+      campaignId: secondId,
+      providerCheckoutId: "ch_second",
+      providerPaymentId: "pay_second",
+      providerEventId: "msg_second",
+    };
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        ...secondArgs,
+        providerPaymentId: "pay_late",
+      }),
+    ).rejects.toThrow("identity conflict");
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        ...secondArgs,
+        providerEventId: "msg_late",
+      }),
+    ).rejects.toThrow("cannot activate");
+    expect(
+      await f.t.mutation(internal.payments.activateCampaign, secondArgs),
+    ).toMatchObject({ state: "prediction_open" });
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        ...lateArgs,
+        providerPaymentId: "pay_second",
+        providerEventId: "msg_new",
+      }),
+    ).rejects.toThrow("identity conflict");
+    expect(
+      await f.t.run((ctx) => ctx.db.query("payments").take(10)),
+    ).toHaveLength(2);
+  });
+
+  it("refuses a late payment if an unpublished campaign has unaccounted participant activity", async () => {
+    const f = await boundFixture();
+    const profile = await f.sponsor.query(api.profiles.me, {});
+    await f.t.run((ctx) =>
+      ctx.db.insert("participations", {
+        campaignId: f.campaignId,
+        userId: profile!.id,
+        joinedAt: Date.now(),
+        submissionCount: 0,
+        ticketCount: 0,
+      }),
+    );
+    vi.setSystemTime((await state(f)).campaign!.predictionClosesAt);
+    await expect(
+      f.t.mutation(internal.payments.activateCampaign, {
+        campaignId: f.campaignId,
+        providerCheckoutId: "ch_test",
+        providerPaymentId: "pay_late",
+        providerEventId: "msg_late",
+        amountUsdCents: 2500,
+        currency: "USD",
+        sandbox: true,
+      }),
+    ).rejects.toThrow("activity invariant");
+    expect((await state(f)).payments).toHaveLength(0);
+    expect((await state(f)).campaign?.state).toBe("awaiting_payment");
+  });
   it("activates once across concurrent delivery and later duplicate events", async () => {
     const f = await boundFixture();
     const fetcher = vi.fn(async () => Response.json(providerPayment(f)));
