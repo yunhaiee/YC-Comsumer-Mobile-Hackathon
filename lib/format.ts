@@ -1,15 +1,9 @@
-export const UNITS_PER_CREDIT = 100;
-
-export function formatCredits(units: number) {
-  const credits = units / UNITS_PER_CREDIT;
-  return `${credits.toLocaleString("en-US", { maximumFractionDigits: 2 })} cr`;
-}
-
-export function formatUsd(cents: number) {
+export function formatUsd(cents: number, exact = false) {
   return (cents / 100).toLocaleString("en-US", {
     style: "currency",
     currency: "USD",
-    maximumFractionDigits: cents % 100 === 0 ? 0 : 2,
+    minimumFractionDigits: exact ? 2 : undefined,
+    maximumFractionDigits: exact || cents % 100 !== 0 ? 2 : 0,
   });
 }
 

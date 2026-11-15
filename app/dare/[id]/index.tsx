@@ -9,7 +9,7 @@ import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNow } from "@/hooks/useNow";
 import { poolSplit } from "@/lib/campaign";
-import { UNITS_PER_CREDIT, errorMessage, formatCredits, formatTime, newRequestId } from "@/lib/format";
+import { errorMessage, formatTime, formatUsd, newRequestId } from "@/lib/format";
 import { colors, font, radius } from "@/lib/theme";
 
 type Side = "YES" | "NO";
@@ -72,14 +72,14 @@ export default function DareDetailScreen() {
       <Card>
         <View style={styles.between}>
           <Text style={styles.blockTitle}>Will someone do it?</Text>
-          {split ? <Text style={text.small}>{formatCredits(split.total)} in</Text> : null}
+          {split ? <Text style={text.small}>{formatUsd(split.total)} in</Text> : null}
         </View>
         <ForAgainst campaign={campaign} onPick={viewer.canPredict ? setPickedSide : undefined} />
         {market?.position ? (
           <Row
             label="You"
-            value={`${market.position.side === "YES" ? "For" : "Against"} · ${formatCredits(market.position.stakeUnits)}${
-              market.position.payoutUnits !== null ? ` → ${formatCredits(market.position.payoutUnits)}` : ""
+            value={`${market.position.side === "YES" ? "For" : "Against"} · ${formatUsd(market.position.stakeUnits)}${
+              market.position.payoutUnits !== null ? ` → ${formatUsd(market.position.payoutUnits)}` : ""
             }`}
             tone={market.position.side === "YES" ? "positive" : "negative"}
           />
@@ -144,7 +144,7 @@ export default function DareDetailScreen() {
         </Disclosure>
         <Disclosure title="How it works" icon="information-circle-outline">
           <Text style={text.body}>For means you think someone completes it; Against means nobody does.</Text>
-          <Text style={text.body}>Predictions use free play credits. Variable return; the pool changes until cutoff.</Text>
+          <Text style={text.body}>Predictions use Sandbox USD: test payments only, no real money. Variable return; the pool changes until cutoff.</Text>
           <Text style={text.body}>Players can’t predict on a dare they join, and predictors can’t join.</Text>
           <Text style={text.body}>The earliest approved completions win. Rewards are recorded, not paid out.</Text>
         </Disclosure>
@@ -172,8 +172,8 @@ function PredictCard({
   const [requestId, setRequestId] = useState(newRequestId);
   const place = useMutation(api.predictions.place);
   const activeSide = lockedSide ?? side;
-  const credits = Number(amount);
-  const stakeUnits = Number.isFinite(credits) && credits > 0 ? Math.round(credits * UNITS_PER_CREDIT) : 0;
+  const dollars = Number(amount);
+  const stakeUnits = Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : 0;
   const tooLarge = stakeUnits > MAX_STAKE_UNITS;
   const validStake = stakeUnits > 0 && !tooLarge;
   const quote = useQuery(api.predictions.quote, validStake && canPredict ? { campaignId, side: activeSide, stakeUnits } : "skip");
@@ -199,35 +199,35 @@ function PredictCard({
     <Card style={{ gap: 14 }}>
       <View style={styles.between}>
         <Text style={styles.blockTitle}>Predict</Text>
-        <Pill label="Play credits" />
+        <Pill label="Sandbox USD" />
       </View>
       <View style={styles.sides}>
         <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => onSideChange("YES")} style={{ flex: 1 }} />
         <Button label="Against" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => onSideChange("NO")} style={{ flex: 1 }} />
       </View>
       <View style={styles.amountBox}>
+        <Text style={styles.amountPrefix}>$</Text>
         <TextInput
           value={amount}
           onChangeText={setAmount}
           keyboardType="decimal-pad"
           style={styles.amountInput}
           selectionColor={colors.accent}
-          accessibilityLabel="Stake in credits"
+          accessibilityLabel="Stake in dollars"
         />
-        <Text style={styles.amountUnit}>cr</Text>
       </View>
       <View style={styles.quick}>
         {["10", "25", "50", "100"].map((v) => (
-          <Chip key={v} label={v} selected={amount === v} onPress={() => setAmount(v)} />
+          <Chip key={v} label={`$${v}`} selected={amount === v} onPress={() => setAmount(v)} />
         ))}
       </View>
       {quote ? (
         <View style={{ gap: 8 }}>
-          <Row label="Est. if right" value={formatCredits(quote.estimatedGrossPayoutUnits)} tone="positive" />
-          <Row label="Max loss" value={formatCredits(quote.maximumLossUnits)} />
+          <Row label="Est. if right" value={formatUsd(quote.estimatedGrossPayoutUnits)} tone="positive" />
+          <Row label="Max loss" value={formatUsd(quote.maximumLossUnits)} />
         </View>
       ) : null}
-      <ErrorText message={tooLarge ? `Max stake is ${formatCredits(MAX_STAKE_UNITS)}.` : error} />
+      <ErrorText message={tooLarge ? `Max stake is ${formatUsd(MAX_STAKE_UNITS)}.` : error} />
       <Button
         label={`Predict ${activeSide === "YES" ? "For" : "Against"}`}
         onPress={onPlace}
@@ -257,6 +257,6 @@ const styles = StyleSheet.create({
     paddingHorizontal: 18,
   },
   amountInput: { flex: 1, minHeight: 60, color: colors.text, fontSize: 28, fontWeight: "700" },
-  amountUnit: { color: colors.muted, ...font.headline },
+  amountPrefix: { color: colors.muted, fontSize: 28, fontWeight: "700", marginRight: 4 },
   quick: { flexDirection: "row", gap: 8 },
 });

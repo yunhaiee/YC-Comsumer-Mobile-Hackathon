@@ -45,7 +45,7 @@ export function SponsorScreen({ children, title, back = "/sponsor" }: PropsWithC
           <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
         </View>
         {children}
-        <Text style={styles.footer}>Rewards recorded, not paid. Predictions use play credits.</Text>
+        <Text style={styles.footer}>Rewards recorded, not paid. Predictions use Sandbox USD, test payments only.</Text>
       </ScrollView>
     </View>
   );
@@ -83,7 +83,7 @@ export function Loading({ children = "Loading your studio…" }: { children?: Re
 }
 
 export function Status({ state }: { state: string }) {
-  const labels: Record<string, string> = { draft: "DRAFT", awaiting_payment: "AWAITING PAYMENT", prediction_open: "PREDICTIONS OPEN", attempts_open: "ATTEMPTS OPEN", review_pending: "REVIEW EVIDENCE", resolved: "RESOLVED", void: "VOID · CREDITS REFUNDED" };
+  const labels: Record<string, string> = { draft: "DRAFT", awaiting_payment: "AWAITING PAYMENT", prediction_open: "PREDICTIONS OPEN", attempts_open: "ATTEMPTS OPEN", review_pending: "REVIEW EVIDENCE", resolved: "RESOLVED", void: "VOID · STAKES REFUNDED" };
   return <View style={styles.badge}><View style={[styles.dot, (state === "prediction_open" || state === "attempts_open") && { backgroundColor: colors.positive }]} /><Text style={styles.badgeText}>{labels[state] ?? state.replaceAll("_", " ").toUpperCase()}</Text></View>;
 }
 

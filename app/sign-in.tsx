@@ -73,7 +73,7 @@ export default function SignInScreen() {
           <Text style={styles.title}>
             {mode === "signIn" ? "Welcome" : "Join the"} <Text style={{ color: colors.accent }}>{mode === "signIn" ? "back" : "dare"}</Text>
           </Text>
-          <Text style={styles.body}>Free play credits. No real money.</Text>
+          <Text style={styles.body}>Sandbox USD · test payments only, no real money.</Text>
         </View>
         <TextInput
           value={username}

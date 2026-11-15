@@ -7,7 +7,7 @@ import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
 import { Button, EmptyState, ListRow, Loading, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { formatCredits } from "@/lib/format";
+import { formatUsd } from "@/lib/format";
 import { colors, font, hairline } from "@/lib/theme";
 
 export default function ProfileScreen() {
@@ -24,7 +24,7 @@ export default function ProfileScreen() {
           icon="person"
           title="Join the"
           accent="dare"
-          body="Take dares or predict with free credits."
+          body="Take dares or predict in Sandbox USD."
           action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
         />
       </Screen>
@@ -41,7 +41,7 @@ export default function ProfileScreen() {
         <View style={{ flex: 1, gap: 4 }}>
           <Text style={styles.name}>{me.isSponsor ? "Sponsor account" : "Player"}</Text>
           <Text style={styles.stat}>
-            <Text style={styles.statValue}>{formatCredits(me.balanceUnits)}</Text> · {me.positions.length} predictions
+            <Text style={styles.statValue}>{formatUsd(me.balanceUnits, true)}</Text> · {me.positions.length} predictions
           </Text>
         </View>
       </View>
@@ -77,7 +77,7 @@ export default function ProfileScreen() {
         {signingOut ? <ActivityIndicator color={colors.muted} /> : null}
       </View>
 
-      <Text style={styles.footnote}>Play credits only. Rewards are recorded, not paid.</Text>
+      <Text style={styles.footnote}>Sandbox USD · test payments only, no real money. Rewards are recorded, not paid.</Text>
     </Screen>
   );
 }
