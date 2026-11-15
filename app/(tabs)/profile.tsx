@@ -1,13 +1,14 @@
+import { Ionicons } from "@expo/vector-icons";
 import { useAuthActions } from "@convex-dev/auth/react";
 import { useConvexAuth, useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { ScrollView, StyleSheet, Text, View } from "react-native";
+import { ActivityIndicator, StyleSheet, Text, View } from "react-native";
 
-import { Button, Card, CenterMessage, Loading, Pill, Row, SectionTitle, text } from "@/components/ui";
+import { Button, EmptyState, ListRow, Loading, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { formatCredits, formatUsd } from "@/lib/format";
-import { colors } from "@/lib/theme";
+import { formatCredits } from "@/lib/format";
+import { colors, font, hairline } from "@/lib/theme";
 
 export default function ProfileScreen() {
   const { isAuthenticated, isLoading } = useConvexAuth();
@@ -18,94 +19,97 @@ export default function ProfileScreen() {
   if (isLoading || (isAuthenticated && me === undefined)) return <Loading />;
   if (!isAuthenticated || !me) {
     return (
-      <CenterMessage
-        title="Sign in to see your wallet"
-        body="Every account starts with free play credits for predictions."
-        action={<Button label="Sign in" onPress={() => router.push("/sign-in")} />}
-      />
+      <Screen title="Profile">
+        <EmptyState
+          icon="person"
+          title="Join the"
+          accent="dare"
+          body="Take dares or predict with free credits."
+          action={<Button label="Sign in" onPress={() => router.push("/sign-in")} style={{ alignSelf: "stretch" }} />}
+        />
+      </Screen>
     );
   }
 
-  const open = me.positions.filter((p) => p.outcome === null);
-  const settled = me.positions.filter((p) => p.outcome !== null);
-
   return (
-    <ScrollView contentContainerStyle={styles.content}>
-      <Card>
-        <Text style={text.small}>Play-credit balance</Text>
-        <Text style={styles.balance}>{formatCredits(me.balanceUnits)}</Text>
-        <Text style={text.small}>Simulated credits. They can’t be bought, withdrawn, or exchanged for money.</Text>
-      </Card>
-
-      {me.isSponsor ? (
-        <Card>
-          <SectionTitle>Sponsor studio</SectionTitle>
-          <Text style={text.body}>Create funded dares, track participation, and review evidence.</Text>
-          <Button label="Open sponsor studio" onPress={() => router.push("/sponsor" as never)} />
-        </Card>
-      ) : null}
-
-      <Card>
-        <SectionTitle>Open predictions</SectionTitle>
-        {open.length === 0 ? <Text style={text.small}>No open predictions.</Text> : open.map((p) => <PositionRow key={p.id} position={p} />)}
-      </Card>
-
-      <Card>
-        <SectionTitle>Settled</SectionTitle>
-        {settled.length === 0 ? <Text style={text.small}>Nothing settled yet.</Text> : settled.map((p) => <PositionRow key={p.id} position={p} />)}
-      </Card>
-
-      <Card>
-        <SectionTitle>Dare rewards</SectionTitle>
-        {me.rewards.length === 0 ? (
-          <Text style={text.small}>Win a sponsored dare to earn a reward.</Text>
-        ) : (
-          me.rewards.map((r) => (
-            <Row key={r.campaignId} label="Sponsor reward (sandbox, not paid out)" value={formatUsd(r.rewardUsdCents)} tone="positive" />
-          ))
-        )}
-      </Card>
-
-      <Button
-        label="Sign out"
-        variant="secondary"
-        loading={signingOut}
-        onPress={async () => {
-          setSigningOut(true);
-          await signOut();
-          setSigningOut(false);
-          router.replace("/");
-        }}
-      />
-    </ScrollView>
-  );
-}
-
-type Position = NonNullable<ReturnType<typeof useQuery<typeof api.profiles.me>>>["positions"][number];
-
-function PositionRow({ position }: { position: Position }) {
-  const won = position.outcome !== null && position.outcome !== "VOID" && position.outcome === position.side;
-  return (
-    <View style={styles.position}>
-      <View style={{ flex: 1, gap: 4 }}>
-        <Text
-          style={text.strong}
-          onPress={() => router.push({ pathname: "/dare/[id]", params: { id: position.campaignId } })}
-        >
-          {position.side} · {formatCredits(position.stakeUnits)}
-        </Text>
-        {position.payoutUnits !== null ? <Text style={text.small}>Paid {formatCredits(position.payoutUnits)}</Text> : null}
+    <Screen title="Profile">
+      <View style={styles.identity}>
+        <View style={styles.avatar}>
+          <Ionicons name="person" size={34} color={colors.text} />
+          <View style={styles.online} />
+        </View>
+        <View style={{ flex: 1, gap: 4 }}>
+          <Text style={styles.name}>{me.isSponsor ? "Sponsor account" : "Player"}</Text>
+          <Text style={styles.stat}>
+            <Text style={styles.statValue}>{formatCredits(me.balanceUnits)}</Text> · {me.positions.length} predictions
+          </Text>
+        </View>
       </View>
-      <Pill
-        label={position.outcome === null ? "Open" : position.outcome === "VOID" ? "Refunded" : won ? "Won" : "Lost"}
-        tone={position.outcome === null ? "accent" : position.outcome === "VOID" ? "muted" : won ? "positive" : "negative"}
-      />
-    </View>
+
+      <View style={styles.buttons}>
+        <Button label="Wallet" variant="secondary" onPress={() => router.push("/wallet")} style={{ flex: 1 }} />
+        <Button label="Explore" variant="secondary" onPress={() => router.push("/")} style={{ flex: 1 }} />
+      </View>
+
+      <View>
+        <Text style={styles.group}>Account</Text>
+        <ListRow first icon="wallet-outline" title="Wallet" onPress={() => router.push("/wallet")} />
+        <ListRow icon="megaphone-outline" title="Sponsor studio" onPress={() => router.push("/sponsor")} />
+        <ListRow icon="gift-outline" title="Rewards" value={String(me.rewards.length)} onPress={() => router.push("/wallet")} />
+      </View>
+
+      <View style={styles.divider} />
+
+      <View>
+        <ListRow
+          first
+          icon="log-out-outline"
+          title={signingOut ? "Signing out…" : "Log out"}
+          destructive
+          onPress={async () => {
+            if (signingOut) return;
+            setSigningOut(true);
+            await signOut();
+            setSigningOut(false);
+            router.replace("/");
+          }}
+        />
+        {signingOut ? <ActivityIndicator color={colors.muted} /> : null}
+      </View>
+
+      <Text style={styles.footnote}>Play credits only. Sandbox rewards are recorded, not paid.</Text>
+    </Screen>
   );
 }
 
 const styles = StyleSheet.create({
-  content: { padding: 20, gap: 16, paddingBottom: 48, maxWidth: 680, width: "100%", alignSelf: "center" },
-  balance: { color: colors.text, fontSize: 44, fontWeight: "900" },
-  position: { flexDirection: "row", alignItems: "center", gap: 12, paddingVertical: 8, borderTopWidth: 1, borderTopColor: colors.border },
+  identity: { flexDirection: "row", alignItems: "center", gap: 18 },
+  avatar: {
+    width: 80,
+    height: 80,
+    borderRadius: 40,
+    backgroundColor: "#3A3D45",
+    alignItems: "center",
+    justifyContent: "center",
+    borderWidth: hairline,
+    borderColor: colors.hairline,
+  },
+  online: {
+    position: "absolute",
+    right: 2,
+    bottom: 2,
+    width: 18,
+    height: 18,
+    borderRadius: 9,
+    backgroundColor: colors.positive,
+    borderWidth: 3,
+    borderColor: colors.background,
+  },
+  name: { color: colors.text, ...font.title },
+  stat: { color: colors.muted, ...font.callout },
+  statValue: { color: colors.text, fontWeight: "600" },
+  buttons: { flexDirection: "row", gap: 10 },
+  group: { color: colors.muted, ...font.callout, marginBottom: 4 },
+  divider: { height: hairline, backgroundColor: colors.hairline },
+  footnote: { color: colors.faint, ...font.footnote },
 });

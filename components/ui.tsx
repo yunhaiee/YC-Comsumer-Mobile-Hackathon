@@ -162,7 +162,7 @@ export function Card({ children, style }: PropsWithChildren<{ style?: StyleProp<
 export function Pill({ label, tone = "muted", icon }: { label: string; tone?: Tone; icon?: IconName }) {
   const color = toneColor[tone];
   return (
-    <View style={[styles.pill, tone === "accent" && { backgroundColor: colors.accentSoft }]}>
+    <View style={styles.pill}>
       {icon ? <Ionicons name={icon} size={13} color={color} /> : tone !== "muted" ? <View style={[styles.dot, { backgroundColor: color }]} /> : null}
       <Text style={[styles.pillText, { color: tone === "muted" ? colors.text : color }]} numberOfLines={1}>
         {label}
@@ -327,12 +327,12 @@ export function IsoArt({ icon, size = 120 }: { icon: IconName; size?: number }) 
       ))}
       <View style={diamond(size * 0.08, "#3A3A3E")} />
       {[6, 4, 2].map((o) => (
-        <View key={`a${o}`} style={diamond(o - size * 0.06, "#5B3BC4", 0.55)} />
+        <View key={`a${o}`} style={diamond(o - size * 0.06, "#8E8E93", 0.55)} />
       ))}
-      <View style={diamond(-size * 0.06, colors.accent, 0.55)} />
+      <View style={diamond(-size * 0.06, "#E5E5EA", 0.55)} />
       <View style={{ position: "absolute", left: 0, right: 0, top: size * 0.06, alignItems: "center" }}>
         <View style={styles.isoBadge}>
-          <Ionicons name={icon} size={size * 0.24} color={colors.text} />
+          <Ionicons name={icon} size={size * 0.24} color={colors.accent} />
         </View>
       </View>
     </View>
