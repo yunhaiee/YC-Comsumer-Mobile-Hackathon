@@ -36,6 +36,7 @@ export default function SponsorCampaign() {
   return (
     <SponsorScreen title={campaign.title}>
       <Status state={campaign.state} />
+      {campaign.paymentIssue === "late_payment_refund_required" ? <Notice error>Late sandbox payment — refund requires operator follow-up. This campaign will not open.</Notice> : null}
       <Text style={styles.body}>{campaign.description}</Text>
       <Card>
         <Text style={styles.eyebrow}>CRITERIA</Text>

@@ -34,6 +34,7 @@ export default function SponsorDashboard() {
               <Metric label="Videos" value={campaign.submissionCount} />
               <Metric label="To review" value={campaign.pendingCount} />
             </View>
+            {campaign.paymentIssue === "late_payment_refund_required" ? <Notice error>Late sandbox payment — refund requires operator follow-up.</Notice> : null}
             {campaign.outcome ? <Text style={styles.body}>Outcome: <Text style={styles.strong}>{campaign.outcome}</Text></Text> : null}
           </Card>
         </Pressable>
