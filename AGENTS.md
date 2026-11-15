@@ -33,7 +33,7 @@ Run lint and typecheck before declaring any task done.
 
 Read `docs/DARE_PLAN.md` before implementation. YL owns root configuration, dependencies, navigation, providers, shared UI, and consumer screens. TK owns Convex except `convex/whop/`. YL's Subagent 1 owns `convex/whop/` and its tests. SF owns `app/sponsor/`, `components/sponsor/`, and Revyl validation. Request cross-owner changes; do not independently scaffold or change shared contracts.
 
-Keep credentials out of commits and client bundles. Whop uses sandbox only. Predictions use free play credits with no redemption or real-money wagering. A configured URL does not prove a working backend. Do not fabricate campaigns, payment success, verification, or test results.
+Keep credentials out of commits and client bundles. Whop uses sandbox only. Predictions use Sandbox USD funded only by Whop sandbox test-card deposits; no real money moves, nothing is withdrawable, and copy must say so. A configured URL does not prove a working backend. Do not fabricate campaigns, payment success, verification, or test results.
 
 ## Building with Revyl
 

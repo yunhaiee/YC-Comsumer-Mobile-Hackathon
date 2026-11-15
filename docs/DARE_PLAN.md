@@ -9,7 +9,7 @@ Foundation merged as PR #1 at bd46a66. YL (YCCO-3) and TK (YCCO-5) have agreed o
 - Companies sponsor short-term challenges with a fixed performer prize. Company sponsorship is the central experience, not a friends-only game.
 - Users participate or predict YES/NO. YES means at least one eligible participant completes the campaign's exact criteria by the deadline; NO means nobody does.
 - Prediction activity changes prediction economics, never the fixed performer prize.
-- Predictions use free simulated credits only. No credit purchases, cash conversion, wagering deposits, withdrawals, or real-money betting.
+- Predictions use Sandbox USD. Users fund their balance through Whop sandbox checkout deposits (test cards only), credited solely by the verified webhook. No real money, withdrawals, or cash-out; winnings stay as in-app sandbox balance.
 - Evidence is uploaded video; the company reviews it. No livestreaming or AI verification.
 - Evidence is due by the dare deadline. TK confirmed a separate 24-hour company review window after that deadline. Settle only after all timely evidence is reviewed; unresolved campaigns void and refund at review timeout, never resolve NO merely because evidence is unreviewed.
 - Once a user predicts on a campaign, they cannot switch into participating in that campaign.
@@ -58,7 +58,7 @@ YL registers shared navigation; SF adds only sponsor routes. Root `app/` is deli
 
 ## Shared types and conventions
 
-Use generated Convex `Id<"campaigns">`, `Id<"submissions">`, and `Id<"_storage">`; do not hand-write generated code. Prices/reward allocations use integer USD cents. Play credits use integer minor units (100 units = 1 displayed credit), independently named and stored. Timestamps are UTC epoch milliseconds and enforced by server time. Derive actor identity from authenticated context, not arguments. Validate every input.
+Use generated Convex `Id<"campaigns">`, `Id<"submissions">`, and `Id<"_storage">`; do not hand-write generated code. Prices/reward allocations use integer USD cents. Prediction balances, stakes, and payouts use integer minor units equal to Sandbox USD cents (100 units = $1.00); field names keep the `Units` suffix. Timestamps are UTC epoch milliseconds and enforced by server time. Derive actor identity from authenticated context, not arguments. Validate every input.
 
 Campaign queries should return: `id`, `title`, `description`, `sponsorName`, `mediaUrl` (nullable), `criteria`, `winnerCount`, `rewardUsdCents` (per winner), `predictionClosesAt`, `attemptStartsAt`, `deadlineAt`, `reviewDeadlineAt`, `state`, `participantCount`, and `outcome` (null/YES/NO/VOID). Viewer-specific eligibility is separate from public campaign fields. Public queries must not expose raw payment payloads or private evidence.
 
