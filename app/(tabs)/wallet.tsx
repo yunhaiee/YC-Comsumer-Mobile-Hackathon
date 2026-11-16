@@ -1,7 +1,7 @@
 import { useConvexAuth, useQuery } from "convex/react";
 import { router } from "expo-router";
 import { useState } from "react";
-import { StyleSheet, Text, View } from "react-native";
+import { ScrollView, StyleSheet, Text, View } from "react-native";
 
 import { AddFundsSheet } from "@/components/add-funds";
 import { ActionTiles, BalanceHero, Button, Chip, EmptyState, ListRow, Loading, Screen } from "@/components/ui";
@@ -53,12 +53,12 @@ export default function WalletScreen() {
       />
       <View style={styles.section}>
         <Text style={styles.sectionTitle}>Activity</Text>
-        <View style={styles.chips}>
-          <Chip label={`Open ${open.length}`} selected={tab === "open"} onPress={() => setTab("open")} />
+        <ScrollView horizontal showsHorizontalScrollIndicator={false} contentContainerStyle={styles.chips}>
+          <Chip label="Open" selected={tab === "open"} onPress={() => setTab("open")} />
           <Chip label="Settled" selected={tab === "settled"} onPress={() => setTab("settled")} />
           <Chip label="Rewards" selected={tab === "rewards"} onPress={() => setTab("rewards")} />
           {deposits ? <Chip label="Deposits" selected={tab === "deposits"} onPress={() => setTab("deposits")} /> : null}
-        </View>
+        </ScrollView>
         <View>
           {tab === "deposits" ? (
             !deposits?.length ? (
@@ -125,5 +125,5 @@ function PositionRow({ position, first }: { position: Position; first: boolean }
 const styles = StyleSheet.create({
   section: { gap: 14, marginTop: 8 },
   sectionTitle: { color: colors.text, ...font.title },
-  chips: { flexDirection: "row", flexWrap: "wrap", gap: 8 },
+  chips: { flexDirection: "row", gap: 8 },
 });

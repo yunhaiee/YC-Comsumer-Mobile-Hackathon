@@ -14,6 +14,7 @@ import {
 } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
+import { BrandHeader } from "@/components/ui";
 import { TAB_BAR_CLEARANCE, colors, hairline } from "@/lib/theme";
 
 export const money = (cents: number) =>
@@ -36,6 +37,7 @@ export function SponsorScreen({ children, title, back = "/sponsor" }: PropsWithC
         keyboardShouldPersistTaps="handled"
         showsVerticalScrollIndicator={false}
       >
+        <BrandHeader />
         <View style={styles.navigation}>
           {back === "/" ? null : (
             <Pressable accessibilityRole="button" accessibilityLabel="Go back" hitSlop={8} onPress={() => router.replace(back)} style={({ pressed }) => [styles.back, pressed && styles.pressed]}>

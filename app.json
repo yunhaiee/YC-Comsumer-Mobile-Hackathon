@@ -41,6 +41,23 @@
     ],
     "experiments": {
       "typedRoutes": true
+    },
+    "owner": "dareyc",
+    "extra": {
+      "eas": {
+        "projectId": "505c7fd1-7a36-4c40-b180-aee5013248d4"
+      }
+    },
+    "updates": {
+      "url": "https://u.expo.dev/505c7fd1-7a36-4c40-b180-aee5013248d4",
+      "requestHeaders": {
+        "expo-channel-name": "main"
+      },
+      "checkAutomatically": "ON_LOAD",
+      "fallbackToCacheTimeout": 0
+    },
+    "runtimeVersion": {
+      "policy": "appVersion"
     }
   }
 }
