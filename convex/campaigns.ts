@@ -111,9 +111,21 @@ export const templates = query({
     },
   }),
 });
+export const generateThumbnailUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    const u = await user(ctx);
+    if (!(await membership(ctx, u._id))) fail("Sponsor membership required");
+    return await ctx.storage.generateUploadUrl();
+  },
+});
 export const createDraft = mutation({
   args: {
     templateId,
+    title: v.optional(v.string()),
+    rules: v.optional(v.string()),
+    thumbnailId: v.optional(v.id("_storage")),
     winnerCount: v.number(),
     rewardUsdCents: v.number(),
     predictionClosesAt: v.number(),
@@ -148,9 +160,28 @@ export const createDraft = mutation({
       now + 31 * 86400_000,
       "deadlineAt",
     );
+    const { title, rules, thumbnailId, ...fields } = args;
+    let text: { title: string; description: string; criteria: string };
+    if (args.templateId === "custom") {
+      const t = title?.trim() ?? "";
+      if (!t || t.length > 80) fail("Title must be 1-80 characters");
+      const r = rules?.trim() || t;
+      if (r.length > 500) fail("Rules must be at most 500 characters");
+      text = { title: t, description: t, criteria: r };
+    } else {
+      text = TEMPLATES[args.templateId];
+    }
+    let thumbnailUrl: string | undefined;
+    if (thumbnailId) {
+      const file = await ctx.db.system.get("_storage", thumbnailId);
+      if (!file?.contentType?.startsWith("image/") || file.size > 10_000_000)
+        fail("Thumbnail must be an image under 10 MB");
+      thumbnailUrl = (await ctx.storage.getUrl(thumbnailId)) ?? undefined;
+    }
     const id = await ctx.db.insert("campaigns", {
-      ...args,
-      ...TEMPLATES[args.templateId],
+      ...fields,
+      ...text,
+      thumbnailUrl,
       sponsorId: s._id,
       sponsorName: s.name,
       amountUsdCents: args.winnerCount * args.rewardUsdCents,

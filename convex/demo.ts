@@ -62,8 +62,6 @@ export const unpublishCampaign = internalMutation({
   handler: async (ctx, args) => {
     const c = await ctx.db.get("campaigns", args.campaignId);
     if (!c?.isDemo) fail("Demo campaign required");
-    if (c.positionCount || c.participantCount || c.submissionCount)
-      fail("Campaign already has activity");
     await ctx.db.patch("campaigns", c._id, { published: false });
     return null;
   },

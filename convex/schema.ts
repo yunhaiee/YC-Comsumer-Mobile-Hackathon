@@ -51,6 +51,7 @@ export default defineSchema({
     providerCheckoutId: v.optional(v.string()),
     providerVariantId: v.optional(v.string()),
     checkoutUrl: v.optional(v.string()),
+    thumbnailUrl: v.optional(v.string()),
     paymentIssue: v.optional(v.literal("late_payment_refund_required")),
   })
     .index("by_published", ["published"])

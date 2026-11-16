@@ -11,7 +11,7 @@ import { campaignPhase } from "@/lib/campaign";
 import { DEMO_DARES, DEMO_DARES_ENABLED } from "@/lib/demo-dares";
 import { TAB_BAR_CLEARANCE, dare } from "@/lib/theme";
 
-type CardItem = { id: string; title: string; sponsorName: string; rewardCents: number; deadline: number | null };
+type CardItem = { id: string; title: string; sponsorName: string; thumbnailUrl?: string | null; rewardCents: number; deadline: number | null };
 
 const DEMO_ITEMS: CardItem[] = DEMO_DARES.map((d) => ({
   id: d.id,
@@ -31,6 +31,7 @@ export default function HomeScreen() {
         id: c.id,
         title: c.title,
         sponsorName: c.sponsorName,
+        thumbnailUrl: c.thumbnailUrl,
         rewardCents: c.rewardUsdCents,
         deadline: campaignPhase(c, now).target,
       }));
@@ -46,6 +47,7 @@ export default function HomeScreen() {
         <DareCard
           title={item.title}
           sponsorName={item.sponsorName}
+          thumbnailUrl={item.thumbnailUrl}
           rewardCents={item.rewardCents}
           deadline={item.deadline}
           onPress={() => router.push({ pathname: "/dare/[id]", params: { id: item.id } })}

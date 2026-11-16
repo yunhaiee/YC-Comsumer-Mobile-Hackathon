@@ -14,9 +14,9 @@ const f = dare.font;
 
 export const sponsorLabel = (name: string) => name.replace(/\s*[—–-]\s*sandbox$/i, "");
 
-export function CountdownPill({ deadline }: { deadline: number | null }) {
+export function CountdownPill({ deadline, text }: { deadline: number | null; text?: string }) {
   const { label, urgent } = useCountdown(deadline);
-  const value = deadline === null ? "Ended" : label;
+  const value = text ?? (deadline === null ? "Ended" : label);
   const red = deadline !== null && urgent;
   return (
     <View style={[styles.pill, red && styles.pillUrgent]} accessible accessibilityLabel={`Time left ${value}`}>
@@ -46,22 +46,26 @@ export function SponsorTile({ name, size }: { name: string; size: 22 | 24 }) {
   return <Image source={media.logo} style={[tile, { backgroundColor: media.logoTileBg }]} resizeMode="cover" />;
 }
 
-function Hero({ sponsorName }: { sponsorName: string }) {
-  const media = sponsorMedia(sponsorName);
-  return media ? <Image source={media.hero} style={styles.heroImage} resizeMode="cover" /> : null;
+function Hero({ sponsorName, thumbnailUrl }: { sponsorName: string; thumbnailUrl?: string | null }) {
+  const source = thumbnailUrl ? { uri: thumbnailUrl } : sponsorMedia(sponsorName)?.hero;
+  return source ? <Image source={source} style={styles.heroImage} resizeMode="cover" /> : null;
 }
 
 export function DareCard({
   title,
   sponsorName,
+  thumbnailUrl,
   rewardCents,
   deadline,
+  pillText,
   onPress,
 }: {
   title: string;
   sponsorName: string;
+  thumbnailUrl?: string | null;
   rewardCents: number;
   deadline: number | null;
+  pillText?: string;
   onPress: () => void;
 }) {
   const sponsor = sponsorLabel(sponsorName);
@@ -72,7 +76,7 @@ export function DareCard({
       onPress={onPress}
       style={({ pressed }) => [styles.card, pressed && styles.pressed]}
     >
-      <Hero sponsorName={sponsorName} />
+      <Hero sponsorName={sponsorName} thumbnailUrl={thumbnailUrl} />
       <LinearGradient
         colors={["rgba(0,0,0,0.85)", "rgba(0,0,0,0.5)", "rgba(0,0,0,0.78)", "rgba(0,0,0,0.97)", "#000000"]}
         locations={[0, 0.25, 0.48, 0.72, 1]}
@@ -85,7 +89,7 @@ export function DareCard({
         </Text>
       </View>
       <View style={styles.cardPill}>
-        <CountdownPill deadline={deadline} />
+        <CountdownPill deadline={deadline} text={pillText} />
       </View>
       <View style={styles.cardBottom}>
         <Text style={styles.cardReward}>{formatUsd(rewardCents)}</Text>
@@ -97,10 +101,10 @@ export function DareCard({
   );
 }
 
-export function DareHero({ sponsorName, deadline }: { sponsorName: string; deadline: number | null }) {
+export function DareHero({ sponsorName, thumbnailUrl, deadline }: { sponsorName: string; thumbnailUrl?: string | null; deadline: number | null }) {
   return (
     <View style={styles.hero}>
-      <Hero sponsorName={sponsorName} />
+      <Hero sponsorName={sponsorName} thumbnailUrl={thumbnailUrl} />
       <View style={styles.heroPill}>
         <CountdownPill deadline={deadline} />
       </View>

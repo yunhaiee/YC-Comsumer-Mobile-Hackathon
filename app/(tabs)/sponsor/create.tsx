@@ -1,110 +1,121 @@
-import { useMutation, useQuery } from "convex/react";
-import type { Infer } from "convex/values";
+import * as ImagePicker from "expo-image-picker";
+import { useAction, useMutation } from "convex/react";
 import { router } from "expo-router";
+import { openBrowserAsync } from "expo-web-browser";
 import { useState } from "react";
-import { Pressable, Text, View } from "react-native";
+import { Image, Pressable, StyleSheet, Text, View } from "react-native";
+import { Ionicons } from "@expo/vector-icons";
 
-import { Button, Card, Field, Loading, Notice, SponsorScreen, errorText, money, styles } from "@/components/sponsor/ui";
+import { Button, Field, Notice, SponsorScreen, errorText, money, styles } from "@/components/sponsor/ui";
 import { api } from "@/convex/_generated/api";
-import type { templateId as templateIdValidator } from "@/convex/validators";
+import { colors } from "@/lib/theme";
 
 const MINUTE = 60_000;
-const LATENCY_MARGIN = MINUTE;
+const DURATIONS = [
+  { label: "5m", ms: 5 * MINUTE },
+  { label: "1h", ms: 60 * MINUTE },
+  { label: "24h", ms: 24 * 60 * MINUTE },
+  { label: "3d", ms: 3 * 24 * 60 * MINUTE },
+];
 
-export default function CreateCampaign() {
-  const config = useQuery(api.campaigns.templates, {});
+export default function CreateDare() {
+  const uploadUrl = useMutation(api.campaigns.generateThumbnailUploadUrl);
   const createDraft = useMutation(api.campaigns.createDraft);
-  const [templateId, setTemplateId] = useState<Infer<typeof templateIdValidator>>("balance-object");
-  const [winners, setWinners] = useState("1");
-  const [reward, setReward] = useState("25");
-  const [cutoffMinutes, setCutoffMinutes] = useState("10");
-  const [startMinutes, setStartMinutes] = useState("15");
-  const [durationMinutes, setDurationMinutes] = useState("60");
+  const checkout = useAction(api.whop.checkout.create);
+  const [title, setTitle] = useState("");
+  const [rules, setRules] = useState("");
+  const [thumbnail, setThumbnail] = useState<ImagePicker.ImagePickerAsset | null>(null);
+  const [reward, setReward] = useState("100");
+  const [people, setPeople] = useState("5");
+  const [duration, setDuration] = useState(DURATIONS[1].ms);
   const [busy, setBusy] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  if (!config) {
-    return (
-      <SponsorScreen title="New campaign">
-        <Loading />
-      </SponsorScreen>
-    );
-  }
-
-  const { limits } = config;
-  const winnerCount = Number(winners);
+  const winnerCount = Number(people);
   const rewardUsdCents = Math.round(Number(reward) * 100);
-  const cutoff = Number(cutoffMinutes) * MINUTE;
-  const start = Number(startMinutes) * MINUTE;
-  const duration = Number(durationMinutes) * MINUTE;
+  const valid =
+    title.trim().length > 0 &&
+    Number.isInteger(winnerCount) && winnerCount >= 1 && winnerCount <= 20 &&
+    rewardUsdCents >= 100 && rewardUsdCents <= 100_000;
 
-  const problem = !Number.isInteger(winnerCount) || winnerCount < limits.minWinnerCount || winnerCount > limits.maxWinnerCount
-    ? `Winners must be a whole number from ${limits.minWinnerCount} to ${limits.maxWinnerCount}.`
-    : !Number.isFinite(rewardUsdCents) || rewardUsdCents < limits.minRewardUsdCents || rewardUsdCents > limits.maxRewardUsdCents
-      ? `Reward per winner must be ${money(limits.minRewardUsdCents)} to ${money(limits.maxRewardUsdCents)}.`
-      : !(cutoff >= limits.minLeadMs + LATENCY_MARGIN)
-        ? "Predictions must stay open for at least two minutes."
-        : !(start >= cutoff && start <= limits.maxStartLeadMs)
-          ? "Attempts must start at or after the prediction cutoff, within 30 days."
-          : !(duration >= limits.minAttemptDurationMs && start + duration <= limits.maxDeadlineLeadMs)
-            ? "The attempt window must be at least one minute and end within 31 days."
-            : null;
+  const pick = async () => {
+    const result = await ImagePicker.launchImageLibraryAsync({ mediaTypes: ["images"], allowsEditing: true, aspect: [16, 9], quality: 0.7 });
+    if (!result.canceled) setThumbnail(result.assets[0]);
+  };
 
-  const submit = async () => {
+  const post = async () => {
     setBusy(true);
     setError(null);
-    const now = Date.now();
     try {
+      let thumbnailId;
+      if (thumbnail) {
+        const body = await (await fetch(thumbnail.uri)).blob();
+        const response = await fetch(await uploadUrl({}), { method: "POST", headers: { "Content-Type": thumbnail.mimeType ?? "image/jpeg" }, body });
+        if (!response.ok) throw new Error("Thumbnail upload failed.");
+        thumbnailId = (await response.json()).storageId;
+      }
+      const predictionClosesAt = Date.now() + duration + MINUTE;
       const campaignId = await createDraft({
-        templateId,
+        templateId: "custom",
+        title: title.trim(),
+        rules: rules.trim() || undefined,
+        thumbnailId,
         winnerCount,
         rewardUsdCents,
-        predictionClosesAt: now + cutoff,
-        attemptStartsAt: now + start,
-        deadlineAt: now + start + duration,
+        predictionClosesAt,
+        attemptStartsAt: predictionClosesAt,
+        deadlineAt: predictionClosesAt + duration,
       });
+      const { checkoutUrl } = await checkout({ campaignId });
       router.replace({ pathname: "/sponsor/[id]", params: { id: campaignId } });
+      await openBrowserAsync(checkoutUrl);
     } catch (caught) {
-      setError(errorText(caught));
+      setError(caught instanceof Error && !("data" in caught) ? caught.message : errorText(caught));
       setBusy(false);
     }
   };
 
   return (
-    <SponsorScreen title="New campaign">
-      <Text style={styles.eyebrow}>CHALLENGE</Text>
-      {config.templates.map((template) => (
-        <Pressable
-          key={template.id}
-          accessibilityRole="radio"
-          accessibilityState={{ checked: template.id === templateId }}
-          onPress={() => setTemplateId(template.id)}
-        >
-          <View style={[styles.card, template.id === templateId && { borderColor: "#8054E8" }]}>
-            <Text style={styles.heading}>{template.title}</Text>
-            <Text style={styles.body}>{template.description}</Text>
-            <Text style={styles.body}>
-              <Text style={styles.strong}>Criteria: </Text>
-              {template.criteria}
-            </Text>
-          </View>
-        </Pressable>
-      ))}
-      <Card>
-        <Field label="Winners" keyboardType="number-pad" value={winners} onChangeText={setWinners} hint="Earliest approved distinct participants win." />
-        <Field label="Reward per winner (USD)" keyboardType="decimal-pad" value={reward} onChangeText={setReward} hint="A represented reward. No money is transferred to participants." />
-        <Field label="Predictions close in (minutes)" keyboardType="number-pad" value={cutoffMinutes} onChangeText={setCutoffMinutes} />
-        <Field label="Attempts start in (minutes)" keyboardType="number-pad" value={startMinutes} onChangeText={setStartMinutes} hint="Joining also closes when attempts start." />
-        <Field label="Attempt window (minutes)" keyboardType="number-pad" value={durationMinutes} onChangeText={setDurationMinutes} hint="Evidence is due when the window ends. You then have 24 hours to review." />
-      </Card>
-      <Card>
-        <Text style={styles.eyebrow}>SANDBOX CHARGE</Text>
-        <Text style={styles.amount}>{problem ? "—" : money(winnerCount * rewardUsdCents)}</Text>
-        <Text style={styles.body}>Winners × reward, with no DARE platform fee. You pay with Whop sandbox checkout on the next screen; the campaign opens only after Whop confirms payment.</Text>
-      </Card>
-      {problem ? <Notice error>{problem}</Notice> : null}
+    <SponsorScreen title="New dare">
+      <Pressable accessibilityRole="button" accessibilityLabel="Upload thumbnail" onPress={pick} style={local.thumb}>
+        {thumbnail ? (
+          <Image source={{ uri: thumbnail.uri }} style={StyleSheet.absoluteFill} resizeMode="cover" />
+        ) : (
+          <>
+            <Ionicons name="image-outline" size={28} color={colors.muted} />
+            <Text style={styles.hint}>Upload thumbnail</Text>
+          </>
+        )}
+      </Pressable>
+      <Field label="Dare" value={title} onChangeText={setTitle} placeholder="Run a marathon in a suit" maxLength={80} />
+      <Field label="Rules (optional)" value={rules} onChangeText={setRules} placeholder="Film it in one take." multiline maxLength={500} />
+      <View style={local.row}>
+        <View style={{ flex: 1 }}>
+          <Field label="Prize ($ each)" keyboardType="number-pad" value={reward} onChangeText={setReward} />
+        </View>
+        <View style={{ flex: 1 }}>
+          <Field label="Winners" keyboardType="number-pad" value={people} onChangeText={setPeople} />
+        </View>
+      </View>
+      <Text style={styles.label}>Predictions open for</Text>
+      <View style={local.row}>
+        {DURATIONS.map((d) => (
+          <Pressable key={d.label} accessibilityRole="radio" accessibilityState={{ checked: d.ms === duration }} onPress={() => setDuration(d.ms)} style={[local.chip, d.ms === duration && local.chipOn]}>
+            <Text style={styles.buttonText}>{d.label}</Text>
+          </Pressable>
+        ))}
+      </View>
       {error ? <Notice error>{error}</Notice> : null}
-      <Button onPress={submit} disabled={Boolean(problem)} busy={busy}>Create draft</Button>
+      <Button onPress={post} disabled={!valid} busy={busy}>
+        {valid ? `Pay ${money(winnerCount * rewardUsdCents)} & post` : "Post dare"}
+      </Button>
     </SponsorScreen>
   );
 }
+
+const local = StyleSheet.create({
+  thumb: { height: 190, borderRadius: 20, overflow: "hidden", backgroundColor: colors.surface, borderWidth: 1, borderColor: colors.border, borderStyle: "dashed", alignItems: "center", justifyContent: "center", gap: 8 },
+  row: { flexDirection: "row", gap: 10 },
+  chip: { flex: 1, minHeight: 46, borderRadius: 14, backgroundColor: colors.surface, alignItems: "center", justifyContent: "center", borderWidth: 1, borderColor: colors.border },
+  chipOn: { backgroundColor: colors.accent, borderColor: colors.accent },
+});

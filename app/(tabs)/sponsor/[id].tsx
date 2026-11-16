@@ -6,14 +6,18 @@ import { openBrowserAsync } from "expo-web-browser";
 import { useEffect, useRef, useState } from "react";
 import { Platform, Text, View } from "react-native";
 
+import { DareHero } from "@/components/dare";
 import { Button, Card, Field, Loading, Notice, SponsorScreen, Status, errorText, money, newRequestId, styles, when } from "@/components/sponsor/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
+import { useNow } from "@/hooks/useNow";
+import { campaignPhase } from "@/lib/campaign";
 
 export default function SponsorCampaign() {
   const { id } = useLocalSearchParams<{ id: string }>();
   const campaignId = id as Id<"campaigns">;
   const campaign = useQuery(api.campaigns.get, { campaignId });
+  const now = useNow(60_000);
   const evidence = useQuery(api.submissions.listForReview, campaign?.viewer.role === "reviewer" ? { campaignId } : "skip");
 
   if (campaign === undefined) {
@@ -35,29 +39,18 @@ export default function SponsorCampaign() {
 
   return (
     <SponsorScreen title={campaign.title}>
+      <DareHero sponsorName={campaign.sponsorName} thumbnailUrl={campaign.thumbnailUrl} deadline={unpaid ? null : campaignPhase(campaign, now).target} />
       <Status state={campaign.state} />
-      {campaign.paymentIssue === "late_payment_refund_required" ? <Notice error>Late sandbox payment — refund requires operator follow-up. This campaign will not open.</Notice> : null}
-      <Text style={styles.body}>{campaign.description}</Text>
-      <Card>
-        <Text style={styles.eyebrow}>CRITERIA</Text>
-        <Text style={styles.body}>{campaign.criteria}</Text>
-        <View style={styles.divider} />
-        <Text style={styles.body}>
-          <Text style={styles.strong}>{campaign.winnerCount} × {money(campaign.rewardUsdCents)}</Text> represented reward ({money(campaign.winnerCount * campaign.rewardUsdCents)} sandbox commitment)
-        </Text>
-        <Text style={styles.body}>Predictions close {when(campaign.predictionClosesAt)}</Text>
-        <Text style={styles.body}>Attempts start {when(campaign.attemptStartsAt)}</Text>
-        <Text style={styles.body}>Evidence due {when(campaign.deadlineAt)}</Text>
-        <Text style={styles.body}>Review closes {when(campaign.reviewDeadlineAt)}</Text>
-      </Card>
+      {campaign.paymentIssue === "late_payment_refund_required" ? <Notice error>Late sandbox payment. This dare won’t open.</Notice> : null}
+      <Text style={styles.body}>{campaign.criteria}</Text>
+      <Text style={styles.body}>
+        <Text style={styles.strong}>{money(campaign.rewardUsdCents)}</Text> × {campaign.winnerCount} winners · ends {when(campaign.deadlineAt)}
+      </Text>
       {unpaid ? <Checkout campaignId={campaign.id} /> : null}
-      <Card>
-        <Text style={styles.eyebrow}>PARTICIPATION</Text>
-        <Text style={styles.body}>
-          <Text style={styles.strong}>{campaign.participantCount}</Text> participants · <Text style={styles.strong}>{campaign.submissionCount}</Text> videos · <Text style={styles.strong}>{campaign.pendingCount}</Text> awaiting review
-        </Text>
-        {campaign.outcome ? <Text style={styles.body}>Outcome: <Text style={styles.strong}>{campaign.outcome}</Text></Text> : null}
-      </Card>
+      <Text style={styles.body}>
+        <Text style={styles.strong}>{campaign.participantCount}</Text> joined · <Text style={styles.strong}>{campaign.submissionCount}</Text> videos · <Text style={styles.strong}>{campaign.pendingCount}</Text> to review
+        {campaign.outcome ? <Text> · <Text style={styles.strong}>{campaign.outcome}</Text></Text> : null}
+      </Text>
       {campaign.viewer.role === "reviewer" ? (
         <>
           <Text style={styles.heading}>Evidence</Text>
@@ -75,36 +68,24 @@ export default function SponsorCampaign() {
 function Checkout({ campaignId }: { campaignId: Id<"campaigns"> }) {
   const create = useAction(api.whop.checkout.create);
   const [busy, setBusy] = useState(false);
-  const [checkoutUrl, setCheckoutUrl] = useState<string | null>(null);
-  const [message, setMessage] = useState<{ text: string; error: boolean } | null>(null);
+  const [error, setError] = useState<string | null>(null);
 
-  const prepare = async () => {
+  const pay = async () => {
     setBusy(true);
-    setMessage(null);
+    setError(null);
     try {
-      setCheckoutUrl((await create({ campaignId })).checkoutUrl);
+      await openBrowserAsync((await create({ campaignId })).checkoutUrl);
     } catch (caught) {
-      setMessage({ text: errorText(caught), error: true });
+      setError(errorText(caught));
     }
     setBusy(false);
   };
 
-  const open = async () => {
-    if (!checkoutUrl) return;
-    await openBrowserAsync(checkoutUrl);
-    setMessage({
-      text: Platform.OS === "web" ? "Finish checkout in the Whop tab. This page updates when Whop confirms payment." : "Checkout closed. Campaign remains inactive until payment is confirmed. This page updates automatically when Whop confirms it.",
-      error: false,
-    });
-  };
-
   return (
-    <Card>
-      <Text style={styles.eyebrow}>PAYMENT</Text>
-      <Text style={styles.body}>Pay with Whop sandbox checkout to open predictions. Use test card 4242 4242 4242 4242. No real money moves.</Text>
-      {message ? <Notice error={message.error}>{message.text}</Notice> : null}
-      {checkoutUrl ? <Button onPress={open}>Open Whop sandbox checkout</Button> : <Button onPress={prepare} busy={busy}>Pay with Whop sandbox</Button>}
-    </Card>
+    <>
+      {error ? <Notice error>{error}</Notice> : null}
+      <Button onPress={pay} busy={busy}>Pay with Whop (test card 4242)</Button>
+    </>
   );
 }
 

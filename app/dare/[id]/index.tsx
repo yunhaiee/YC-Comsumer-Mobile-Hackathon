@@ -24,6 +24,7 @@ type DetailProps = {
   id: string;
   title: string;
   sponsorName: string;
+  thumbnailUrl?: string | null;
   rewardCents: number;
   spotsLeft: number;
   spotsTotal: number;
@@ -48,7 +49,7 @@ function DareDetail(props: DetailProps) {
       >
         <NavHeader right={<IconButton icon="share-outline" label="Share dare" onPress={share} />} />
         <View style={styles.hero}>
-          <DareHero sponsorName={props.sponsorName} deadline={props.heroDeadline} />
+          <DareHero sponsorName={props.sponsorName} thumbnailUrl={props.thumbnailUrl} deadline={props.heroDeadline} />
         </View>
         <View style={styles.sponsor}>
           <SponsorRow name={props.sponsorName} />
@@ -159,6 +160,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
       id={campaign.id}
       title={campaign.title}
       sponsorName={campaign.sponsorName}
+      thumbnailUrl={campaign.thumbnailUrl}
       rewardCents={campaign.rewardUsdCents}
       spotsLeft={spots}
       spotsTotal={PARTICIPANT_LIMIT}
