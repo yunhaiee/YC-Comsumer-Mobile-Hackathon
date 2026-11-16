@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { fail, membership, user } from "./model";
+import { fail, integer, membership, user } from "./model";
 
 export const provisionSponsor = internalMutation({
   args: { userId: v.id("users"), expectedUsername: v.string() },
@@ -94,6 +94,7 @@ export const openAttempts = internalMutation({
     const c = await ctx.db.get("campaigns", args.campaignId);
     if (!c?.isDemo || !c.published || c.outcome)
       fail("Open demo campaign required");
+    integer(args.windowMs, 60_000, 7 * 86400_000, "windowMs");
     const now = Date.now();
     const deadlineAt = now + args.windowMs;
     await ctx.db.patch("campaigns", c._id, {
