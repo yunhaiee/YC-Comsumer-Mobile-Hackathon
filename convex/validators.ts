@@ -22,6 +22,9 @@ export const submissionStatus = v.union(v.literal("pending"), decision);
 export const templateId = v.union(
   v.literal("balance-object"),
   v.literal("paper-plane"),
+  v.literal("open-can-plank"),
+  v.literal("big-mac-30"),
+  v.literal("hoodie-pitch"),
 );
 export const campaignSummary = v.object({
   paymentIssue: v.union(v.literal("late_payment_refund_required"), v.null()),

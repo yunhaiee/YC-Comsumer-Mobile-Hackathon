@@ -34,6 +34,26 @@ const TEMPLATES = {
     criteria:
       "One continuous video: show a paper-only airplane, a marked tabletop target, and a launch line at least one metre away. Throw from behind the line and have the airplane come to rest touching the target. Keep people, animals, traffic, and fragile objects out of the flight path.",
   },
+  "open-can-plank": {
+    title: "Hold a 60s plank with an open Coke on your back",
+    description:
+      "Balance an open can of Coca-Cola on your back and hold a plank for 60 seconds without spilling.",
+    criteria:
+      "One continuous video: show the open, full can, place it on your back, and hold a forearm or straight-arm plank for 60 uninterrupted seconds. Knees and hips stay off the ground, nothing supports the can, and the attempt fails if the can spills or falls.",
+  },
+  "big-mac-30": {
+    title: "Eat a Big Mac in 30 seconds",
+    description: "Finish a whole Big Mac in 30 seconds or less.",
+    criteria:
+      "One continuous video: show the unopened Big Mac box, start a visible timer, and finish the entire burger within 30 seconds, ending with an empty box and empty mouth. Keep water on hand and do not attempt alone.",
+  },
+  "hoodie-pitch": {
+    title: "Pitch a stranger on your side hustle in 30 seconds",
+    description:
+      "Wear a Whop hoodie and get a stranger to say \"I'd buy that\" in 30 seconds.",
+    criteria:
+      "One continuous video: wearing visible Whop merch, pitch your side hustle to a stranger who has agreed to be filmed. Within 30 seconds they say \"I'd buy that\" on camera. No staged friends or paid actors.",
+  },
 };
 export const templates = query({
   args: {},

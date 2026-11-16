@@ -1,10 +1,12 @@
 import { useMutation, useQuery } from "convex/react";
+import type { Infer } from "convex/values";
 import { router } from "expo-router";
 import { useState } from "react";
 import { Pressable, Text, View } from "react-native";
 
 import { Button, Card, Field, Loading, Notice, SponsorScreen, errorText, money, styles } from "@/components/sponsor/ui";
 import { api } from "@/convex/_generated/api";
+import type { templateId as templateIdValidator } from "@/convex/validators";
 
 const MINUTE = 60_000;
 const LATENCY_MARGIN = MINUTE;
@@ -12,7 +14,7 @@ const LATENCY_MARGIN = MINUTE;
 export default function CreateCampaign() {
   const config = useQuery(api.campaigns.templates, {});
   const createDraft = useMutation(api.campaigns.createDraft);
-  const [templateId, setTemplateId] = useState<"balance-object" | "paper-plane">("balance-object");
+  const [templateId, setTemplateId] = useState<Infer<typeof templateIdValidator>>("balance-object");
   const [winners, setWinners] = useState("1");
   const [reward, setReward] = useState("25");
   const [cutoffMinutes, setCutoffMinutes] = useState("10");
