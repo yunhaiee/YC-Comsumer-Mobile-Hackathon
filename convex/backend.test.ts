@@ -330,7 +330,7 @@ describe("DARE secured backend", () => {
     await expect(
       participant.mutation(api.predictions.place, args),
     ).rejects.toThrow("Participants");
-    vi.setSystemTime(now + 180_000);
+    vi.setSystemTime(now + 360_000);
     await expect(
       alice.mutation(api.predictions.place, {
         ...args,
@@ -444,9 +444,6 @@ describe("DARE secured backend", () => {
       bob = (await fundedUser(t, "bob")).client;
     await alice.mutation(api.campaigns.join, { campaignId });
     await bob.mutation(api.campaigns.join, { campaignId });
-    await expect(
-      alice.mutation(api.submissions.generateUploadUrl, { campaignId }),
-    ).rejects.toThrow("closed");
     vi.setSystemTime(now + 240_000);
     const ticket = await alice.mutation(api.submissions.generateUploadUrl, {
       campaignId,
@@ -853,8 +850,8 @@ describe("DARE secured backend", () => {
     expect(
       await participant.query(api.campaigns.get, { campaignId }),
     ).toMatchObject({
-      state: "prediction_open",
-      viewer: { canPredict: false },
+      state: "attempts_open",
+      viewer: { canPredict: false, canSubmit: true },
     });
     await vi.advanceTimersByTimeAsync(60_000);
     await t.finishInProgressScheduledFunctions();

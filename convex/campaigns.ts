@@ -181,6 +181,8 @@ export const createDraft = mutation({
     const id = await ctx.db.insert("campaigns", {
       ...fields,
       ...text,
+      predictionClosesAt: args.deadlineAt,
+      attemptStartsAt: now,
       thumbnailUrl,
       sponsorId: s._id,
       sponsorName: s.name,
@@ -255,7 +257,7 @@ export const join = mutation({
       c = await campaign(ctx, args.campaignId);
     const prior = await participation(ctx, c._id, u._id);
     if (prior) return prior._id;
-    if (!c.published || c.outcome || Date.now() >= c.attemptStartsAt)
+    if (!c.published || c.outcome || Date.now() >= c.deadlineAt)
       fail("Joining is closed");
     if (await membership(ctx, u._id))
       fail("Sponsor reviewers cannot participate");

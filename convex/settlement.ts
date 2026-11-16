@@ -161,7 +161,7 @@ export const transition = internalMutation({
     if (!c.published || c.outcome) return null;
     await ctx.db.patch("campaigns", c._id, {
       predictionClosed: now >= c.predictionClosesAt,
-      joinsClosed: now >= c.attemptStartsAt,
+      joinsClosed: now >= c.deadlineAt,
       state:
         now >= c.deadlineAt
           ? "review_pending"

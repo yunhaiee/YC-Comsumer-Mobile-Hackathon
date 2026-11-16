@@ -120,7 +120,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
   const spots = spotsLeft(campaign);
   const live = !campaign.outcome;
   const betOpen = live && now < campaign.predictionClosesAt;
-  const joinOpen = live && now < campaign.attemptStartsAt && spots > 0;
+  const joinOpen = live && now < campaign.deadlineAt && spots > 0;
   const isParticipant = viewer.role === "participant";
   const uploadOpen = live && now < campaign.deadlineAt;
 
