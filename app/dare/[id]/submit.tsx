@@ -101,24 +101,25 @@ export default function SubmitEvidenceScreen() {
   };
 
   const canSubmit = campaign.viewer.canSubmit;
+  const waiting = campaign.viewer.role === "participant" && !campaign.outcome && now < campaign.attemptStartsAt;
 
   return (
     <Screen tabBar={false}>
       <NavHeader title="Evidence" />
       <Text style={styles.title}>{campaign.title}</Text>
       <Pill
-        label={now < campaign.deadlineAt ? `Evidence due in ${formatCountdown(campaign.deadlineAt, now)}` : "Evidence closed"}
-        tone={now < campaign.deadlineAt ? "positive" : "muted"}
+        label={
+          now < campaign.attemptStartsAt
+            ? `Uploads open in ${formatCountdown(campaign.attemptStartsAt, now)}`
+            : now < campaign.deadlineAt
+              ? `Due in ${formatCountdown(campaign.deadlineAt, now)}`
+              : "Closed"
+        }
+        tone={now < campaign.attemptStartsAt ? "warning" : now < campaign.deadlineAt ? "positive" : "muted"}
       />
-      <View style={{ gap: 6 }}>
-        <Text style={styles.blockTitle}>Criteria</Text>
-        <Text style={text.body}>{campaign.criteria}</Text>
-        <Text style={text.small}>
-          {campaign.sponsorName} reviews each video. Earliest approved {campaign.winnerCount === 1 ? "completion wins" : `${campaign.winnerCount} win`}.
-        </Text>
-      </View>
+      <Text style={text.body}>{campaign.criteria}</Text>
 
-      {canSubmit ? (
+      {canSubmit || waiting ? (
         <Card>
           <Text style={styles.blockTitle}>Your video</Text>
           {picked ? <Preview uri={picked.uri} /> : <Text style={text.small}>One continuous clip, up to 25 MB.</Text>}
@@ -129,26 +130,24 @@ export default function SubmitEvidenceScreen() {
           <ErrorText message={error} />
           {done ? <Text style={[text.strong, { color: colors.positive }]}>Submitted. The sponsor will review it.</Text> : null}
           <Button
-            label={stage === "uploading" ? "Uploading…" : stage === "submitting" ? "Submitting…" : "Submit evidence"}
+            label={waiting ? `Upload opens in ${formatCountdown(campaign.attemptStartsAt, now)}` : stage === "uploading" ? "Uploading…" : stage === "submitting" ? "Submitting…" : "Upload evidence"}
             onPress={send}
             loading={stage !== "idle"}
-            disabled={!picked || !token}
+            disabled={waiting || !picked || !token}
           />
         </Card>
       ) : (
         <Card>
           <Text style={text.body}>
             {campaign.viewer.role !== "participant"
-              ? "Join this dare before attempts start to submit evidence."
-              : now < campaign.attemptStartsAt
-                ? `Submissions open ${formatTime(campaign.attemptStartsAt)}.`
-                : "Submissions are closed for this dare."}
+              ? "Claim a spot on this dare to upload."
+              : "Uploads are closed for this dare."}
           </Text>
         </Card>
       )}
 
       <View>
-        <Text style={styles.blockTitle}>Submissions</Text>
+        <Text style={styles.blockTitle}>Your attempts</Text>
         {mine === undefined ? (
           <Text style={text.small}>Loading…</Text>
         ) : mine.length === 0 ? (

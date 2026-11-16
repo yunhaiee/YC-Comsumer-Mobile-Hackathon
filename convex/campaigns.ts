@@ -34,6 +34,44 @@ const TEMPLATES = {
     criteria:
       "One continuous video: show a paper-only airplane, a marked tabletop target, and a launch line at least one metre away. Throw from behind the line and have the airplane come to rest touching the target. Keep people, animals, traffic, and fragile objects out of the flight path.",
   },
+  "open-can-plank": {
+    title: "Hold a 60s plank with an open Coke on your back",
+    description:
+      "Balance an open can of Coca-Cola on your back and hold a plank for 60 seconds without spilling.",
+    criteria:
+      "Balance an open, full can of Coca-Cola on your lower back. Hold a forearm plank for 60 seconds without spilling. Film it in one take with a visible timer.",
+  },
+  "big-mac-30": {
+    title: "Eat a Big Mac in 30 seconds",
+    description: "Finish a whole Big Mac in 30 seconds or less.",
+    criteria:
+      "One continuous video: show the unopened Big Mac box, start a visible timer, and finish the entire burger within 30 seconds, ending with an empty box and empty mouth. Keep water on hand and do not attempt alone.",
+  },
+  "hoodie-pitch": {
+    title: "Pitch a stranger on your side hustle in 30 seconds",
+    description:
+      "Wear a Whop hoodie and get a stranger to say \"I'd buy that\" in 30 seconds.",
+    criteria:
+      "One continuous video: wearing visible Whop merch, pitch your side hustle to a stranger who has agreed to be filmed. Within 30 seconds they say \"I'd buy that\" on camera. No staged friends or paid actors.",
+  },
+  "big-mac-proposal": {
+    title: "Propose to a Big Mac in a wedding dress",
+    description: "Wear a wedding dress to McDonald's and propose to a Big Mac.",
+    criteria:
+      "Wear a wedding dress to McDonald's. Get on one knee and propose to a Big Mac. Film it in one take, with permission.",
+  },
+  "whop-logo-head": {
+    title: "Tattoo the Whop logo on your forehead",
+    description: "Get the Whop logo tattooed or shaved on your head.",
+    criteria:
+      "Get the Whop logo tattooed or shaved on your head. Show the logo clearly in good light. Film the reveal in one take.",
+  },
+  "marathon-suit": {
+    title: "Run a marathon in a suit",
+    description: "Finish an official marathon in a full suit, shirt, and tie.",
+    criteria:
+      "Wear a full suit, shirt and tie the entire race. Finish an official marathon. Show your bib and finish time on camera.",
+  },
 };
 export const templates = query({
   args: {},
@@ -73,9 +111,21 @@ export const templates = query({
     },
   }),
 });
+export const generateThumbnailUploadUrl = mutation({
+  args: {},
+  returns: v.string(),
+  handler: async (ctx) => {
+    const u = await user(ctx);
+    if (!(await membership(ctx, u._id))) fail("Sponsor membership required");
+    return await ctx.storage.generateUploadUrl();
+  },
+});
 export const createDraft = mutation({
   args: {
     templateId,
+    title: v.optional(v.string()),
+    rules: v.optional(v.string()),
+    thumbnailId: v.optional(v.id("_storage")),
     winnerCount: v.number(),
     rewardUsdCents: v.number(),
     predictionClosesAt: v.number(),
@@ -110,9 +160,28 @@ export const createDraft = mutation({
       now + 31 * 86400_000,
       "deadlineAt",
     );
+    const { title, rules, thumbnailId, ...fields } = args;
+    let text: { title: string; description: string; criteria: string };
+    if (args.templateId === "custom") {
+      const t = title?.trim() ?? "";
+      if (!t || t.length > 80) fail("Title must be 1-80 characters");
+      const r = rules?.trim() || t;
+      if (r.length > 500) fail("Rules must be at most 500 characters");
+      text = { title: t, description: t, criteria: r };
+    } else {
+      text = TEMPLATES[args.templateId];
+    }
+    let thumbnailUrl: string | undefined;
+    if (thumbnailId) {
+      const file = await ctx.db.system.get("_storage", thumbnailId);
+      if (!file?.contentType?.startsWith("image/") || file.size > 10_000_000)
+        fail("Thumbnail must be an image under 10 MB");
+      thumbnailUrl = (await ctx.storage.getUrl(thumbnailId)) ?? undefined;
+    }
     const id = await ctx.db.insert("campaigns", {
-      ...args,
-      ...TEMPLATES[args.templateId],
+      ...fields,
+      ...text,
+      thumbnailUrl,
       sponsorId: s._id,
       sponsorName: s.name,
       amountUsdCents: args.winnerCount * args.rewardUsdCents,
@@ -162,7 +231,9 @@ export const listOwned = query({
         .withIndex("by_sponsorId", (q) => q.eq("sponsorId", m.sponsorId))
         .order("desc")
         .take(50)
-    ).map(summary);
+    )
+      .filter((c) => c.published)
+      .map(summary);
   },
 });
 export const get = query({

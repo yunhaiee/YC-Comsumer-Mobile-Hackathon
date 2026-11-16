@@ -28,7 +28,7 @@ export const newRequestId = () => `${Date.now().toString(36)}-${Math.random().to
 export const when = (timestamp: number) =>
   new Date(timestamp).toLocaleString(undefined, { month: "short", day: "numeric", hour: "numeric", minute: "2-digit" });
 
-export function SponsorScreen({ children, title, back = "/sponsor" }: PropsWithChildren<{ title: string; back?: "/sponsor" | "/" }>) {
+export function SponsorScreen({ children, title, back = "/sponsor", action }: PropsWithChildren<{ title: string; back?: "/sponsor" | "/"; action?: ReactNode }>) {
   const insets = useSafeAreaInsets();
   return (
     <View style={styles.safe}>
@@ -45,9 +45,10 @@ export function SponsorScreen({ children, title, back = "/sponsor" }: PropsWithC
             </Pressable>
           )}
           <Text accessibilityRole="header" style={styles.title} numberOfLines={2}>{title}</Text>
+          {action}
         </View>
         {children}
-        <Text style={styles.footer}>Rewards recorded, not paid. Predictions use USD from test payments only.</Text>
+        <Text style={styles.footer}>Sandbox only · test money, nothing paid out</Text>
       </ScrollView>
     </View>
   );
@@ -112,6 +113,7 @@ export const styles = StyleSheet.create({
   row: { flexDirection: "row", alignItems: "center", gap: 10 },
   between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 12, flexWrap: "wrap" },
   button: { minHeight: 54, backgroundColor: colors.accent, borderRadius: 16, paddingHorizontal: 20, justifyContent: "center", alignItems: "center", flexDirection: "row", gap: 10 },
+  createButton: { flexDirection: "row", alignItems: "center", gap: 4, backgroundColor: colors.accent, borderRadius: 999, paddingHorizontal: 16, height: 40 },
   secondaryButton: { backgroundColor: colors.surfaceRaised },
   buttonText: { fontSize: 17, fontWeight: "600", letterSpacing: -0.4, color: colors.text, textAlign: "center" },
   disabled: { opacity: 0.4 },

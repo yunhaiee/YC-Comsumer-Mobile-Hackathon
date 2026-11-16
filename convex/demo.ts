@@ -35,6 +35,58 @@ export const provisionSponsor = internalMutation({
   },
 });
 
+export const renameSponsor = internalMutation({
+  args: { expectedUsername: v.string(), name: v.string() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    if (!args.expectedUsername.startsWith("dare-demo-"))
+      fail("A dedicated dare-demo- account is required");
+    const name = args.name.trim();
+    if (!name || name.length > 60) fail("Sponsor name must be 1-60 characters");
+    const userId = await ctx.runQuery(
+      components.authUsername.public.getUserIdByUsername,
+      { username: args.expectedUsername },
+    );
+    if (!userId) fail("Demo account not found");
+    const m = await membership(ctx, userId as Id<"users">);
+    const sponsor = m ? await ctx.db.get("sponsors", m.sponsorId) : null;
+    if (!sponsor?.isDemo) fail("Demo sponsor membership required");
+    await ctx.db.patch("sponsors", sponsor._id, { name });
+    return null;
+  },
+});
+
+export const unpublishCampaign = internalMutation({
+  args: { campaignId: v.id("campaigns") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo) fail("Demo campaign required");
+    await ctx.db.patch("campaigns", c._id, { published: false });
+    return null;
+  },
+});
+
+export const adjustCampaign = internalMutation({
+  args: {
+    campaignId: v.id("campaigns"),
+    winnerCount: v.number(),
+    rewardUsdCents: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo) fail("Demo campaign required");
+    if (c.submissionCount) fail("Campaign already has submissions");
+    if (args.winnerCount < c.participantCount) fail("Fewer spots than participants");
+    await ctx.db.patch("campaigns", c._id, {
+      winnerCount: args.winnerCount,
+      rewardUsdCents: args.rewardUsdCents,
+    });
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),

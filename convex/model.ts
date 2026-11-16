@@ -80,6 +80,7 @@ export function summary(c: Doc<"campaigns">) {
     description: c.description,
     sponsorName: c.sponsorName,
     mediaUrl: null,
+    thumbnailUrl: c.thumbnailUrl ?? null,
     criteria: c.criteria,
     winnerCount: c.winnerCount,
     rewardUsdCents: c.rewardUsdCents,

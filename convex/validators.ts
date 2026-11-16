@@ -22,6 +22,13 @@ export const submissionStatus = v.union(v.literal("pending"), decision);
 export const templateId = v.union(
   v.literal("balance-object"),
   v.literal("paper-plane"),
+  v.literal("open-can-plank"),
+  v.literal("big-mac-30"),
+  v.literal("hoodie-pitch"),
+  v.literal("big-mac-proposal"),
+  v.literal("whop-logo-head"),
+  v.literal("marathon-suit"),
+  v.literal("custom"),
 );
 export const campaignSummary = v.object({
   paymentIssue: v.union(v.literal("late_payment_refund_required"), v.null()),
@@ -32,6 +39,7 @@ export const campaignSummary = v.object({
   description: v.string(),
   sponsorName: v.string(),
   mediaUrl: v.union(v.string(), v.null()),
+  thumbnailUrl: v.union(v.string(), v.null()),
   criteria: v.string(),
   winnerCount: v.number(),
   rewardUsdCents: v.number(),
