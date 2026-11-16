@@ -2,7 +2,7 @@ import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
 import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { fail, integer, membership, user } from "./model";
+import { credit, fail, integer, membership, user } from "./model";
 
 export const provisionSponsor = internalMutation({
   args: { userId: v.id("users"), expectedUsername: v.string() },
@@ -183,6 +183,25 @@ export const removeParticipant = internalMutation({
       participantCount: c.participantCount - 1,
     });
     return null;
+  },
+});
+
+export const creditRewards = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    let credited = 0;
+    for (const r of await ctx.db.query("rewards").take(500)) {
+      const key = `reward:${r.campaignId}:${r.userId}`;
+      const prior = await ctx.db
+        .query("ledger")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      if (prior) continue;
+      await credit(ctx, r.userId, r.rewardUsdCents, "reward", key, r.campaignId);
+      credited++;
+    }
+    return credited;
   },
 });
 

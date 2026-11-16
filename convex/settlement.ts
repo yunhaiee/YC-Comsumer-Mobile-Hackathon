@@ -119,6 +119,14 @@ export async function resolveCampaign(
         rewardUsdCents: c.rewardUsdCents,
         status: "represented_not_paid",
       });
+      await credit(
+        ctx,
+        s.userId,
+        c.rewardUsdCents,
+        "reward",
+        `reward:${c._id}:${s.userId}`,
+        c._id,
+      );
       awarded.add(s.userId);
     }
   }

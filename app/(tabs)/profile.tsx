@@ -77,7 +77,7 @@ export default function ProfileScreen() {
         {signingOut ? <ActivityIndicator color={colors.muted} /> : null}
       </View>
 
-      <Text style={styles.footnote}>USD · test payments only, no real money. Rewards are recorded, not paid.</Text>
+      <Text style={styles.footnote}>USD · test payments only, no real money. Nothing is withdrawable.</Text>
     </Screen>
   );
 }
