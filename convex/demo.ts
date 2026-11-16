@@ -165,6 +165,27 @@ export const singleDeadline = internalMutation({
   },
 });
 
+export const removeParticipant = internalMutation({
+  args: { campaignId: v.id("campaigns"), userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || c.outcome) fail("Open demo campaign required");
+    const p = await ctx.db
+      .query("participations")
+      .withIndex("by_campaignId_and_userId", (q) =>
+        q.eq("campaignId", c._id).eq("userId", args.userId),
+      )
+      .unique();
+    if (!p || p.submissionCount) fail("Idle participant required");
+    await ctx.db.delete("participations", p._id);
+    await ctx.db.patch("campaigns", c._id, {
+      participantCount: c.participantCount - 1,
+    });
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),
