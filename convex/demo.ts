@@ -1,8 +1,8 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { api, components } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
-import { fail, membership, user } from "./model";
+import { credit, fail, integer, membership, user } from "./model";
 
 export const provisionSponsor = internalMutation({
   args: { userId: v.id("users"), expectedUsername: v.string() },
@@ -83,6 +83,142 @@ export const adjustCampaign = internalMutation({
       winnerCount: args.winnerCount,
       rewardUsdCents: args.rewardUsdCents,
     });
+    return null;
+  },
+});
+
+export const openAttempts = internalMutation({
+  args: { campaignId: v.id("campaigns"), windowMs: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    integer(args.windowMs, 60_000, 7 * 86400_000, "windowMs");
+    const now = Date.now();
+    const deadlineAt = now + args.windowMs;
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: now,
+      attemptStartsAt: now,
+      deadlineAt,
+      reviewDeadlineAt: deadlineAt + 86400_000,
+    });
+    await ctx.runMutation(internal.settlement.transition, { campaignId: c._id });
+    for (const when of [deadlineAt, deadlineAt + 86400_000])
+      await ctx.scheduler.runAt(when, internal.settlement.transition, {
+        campaignId: c._id,
+      });
+    return null;
+  },
+});
+
+export const betUntilDeadline = internalMutation({
+  args: { campaignId: v.id("campaigns") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: c.deadlineAt,
+      predictionClosed: Date.now() >= c.deadlineAt,
+    });
+    return null;
+  },
+});
+
+export const closeIn = internalMutation({
+  args: { campaignId: v.id("campaigns"), ms: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    integer(args.ms, 0, 86400_000, "ms");
+    const deadlineAt = Math.max(Date.now() + args.ms, c.attemptStartsAt);
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: Math.min(c.predictionClosesAt, deadlineAt),
+      deadlineAt,
+      reviewDeadlineAt: deadlineAt + 86400_000,
+    });
+    await ctx.scheduler.runAt(deadlineAt, internal.settlement.transition, {
+      campaignId: c._id,
+    });
+    return null;
+  },
+});
+
+export const singleDeadline = internalMutation({
+  args: { campaignId: v.id("campaigns") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    const now = Date.now();
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: c.deadlineAt,
+      attemptStartsAt: Math.min(now, c.attemptStartsAt),
+    });
+    await ctx.runMutation(internal.settlement.transition, { campaignId: c._id });
+    return null;
+  },
+});
+
+export const removeParticipant = internalMutation({
+  args: { campaignId: v.id("campaigns"), userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || c.outcome) fail("Open demo campaign required");
+    const p = await ctx.db
+      .query("participations")
+      .withIndex("by_campaignId_and_userId", (q) =>
+        q.eq("campaignId", c._id).eq("userId", args.userId),
+      )
+      .unique();
+    if (!p || p.submissionCount) fail("Idle participant required");
+    await ctx.db.delete("participations", p._id);
+    await ctx.db.patch("campaigns", c._id, {
+      participantCount: c.participantCount - 1,
+    });
+    return null;
+  },
+});
+
+export const creditRewards = internalMutation({
+  args: {},
+  returns: v.number(),
+  handler: async (ctx) => {
+    let credited = 0;
+    for (const r of await ctx.db.query("rewards").take(500)) {
+      const key = `reward:${r.campaignId}:${r.userId}`;
+      const prior = await ctx.db
+        .query("ledger")
+        .withIndex("by_key", (q) => q.eq("key", key))
+        .unique();
+      if (prior) continue;
+      await credit(ctx, r.userId, r.rewardUsdCents, "reward", key, r.campaignId);
+      credited++;
+    }
+    return credited;
+  },
+});
+
+export const resetBalance = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const u = await ctx.db.get("users", args.userId);
+    if (!u) fail("Account not found");
+    if (u.balanceUnits)
+      await credit(
+        ctx,
+        u._id,
+        -u.balanceUnits,
+        "adjustment",
+        `reset:${u._id}:${Date.now()}`,
+      );
     return null;
   },
 });

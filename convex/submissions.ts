@@ -34,7 +34,7 @@ async function uploadPermission(ctx: MutationCtx, campaignId: Id<"campaigns">) {
   )
     fail("Evidence window is closed");
   const p = await participation(ctx, c._id, u._id);
-  if (!p || p.joinedAt >= c.attemptStartsAt)
+  if (!p)
     fail("Participant permission required");
   if (p.submissionCount >= LIMITS.submissions)
     fail("Evidence submission limit reached");

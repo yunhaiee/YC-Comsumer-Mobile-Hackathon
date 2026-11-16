@@ -83,6 +83,8 @@ export default defineSchema({
       v.literal("settlement"),
       v.literal("refund"),
       v.literal("deposit"),
+      v.literal("reward"),
+      v.literal("adjustment"),
     ),
     deltaUnits: v.number(),
     balanceUnits: v.number(),

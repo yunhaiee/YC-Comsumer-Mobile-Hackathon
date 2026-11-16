@@ -48,7 +48,7 @@ export function SponsorScreen({ children, title, back = "/sponsor", action }: Pr
           {action}
         </View>
         {children}
-        <Text style={styles.footer}>Sandbox only · test money, nothing paid out</Text>
+        <Text style={styles.footer}>Sandbox only · test money, not withdrawable</Text>
       </ScrollView>
     </View>
   );

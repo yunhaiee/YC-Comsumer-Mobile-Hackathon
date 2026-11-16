@@ -473,7 +473,7 @@ describe("sandbox checkout through real Convex functions", () => {
 
   it("does not reopen a cached checkout after the campaign payment cutoff", async () => {
     const f = await boundFixture();
-    vi.setSystemTime(Date.now() + 600_001);
+    vi.setSystemTime(Date.now() + 1_200_001);
     const fetcher = vi.fn();
     vi.stubGlobal("fetch", fetcher);
     await expect(
