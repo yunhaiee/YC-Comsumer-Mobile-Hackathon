@@ -112,6 +112,21 @@ export const openAttempts = internalMutation({
   },
 });
 
+export const betUntilDeadline = internalMutation({
+  args: { campaignId: v.id("campaigns") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: c.deadlineAt,
+      predictionClosed: Date.now() >= c.deadlineAt,
+    });
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),
