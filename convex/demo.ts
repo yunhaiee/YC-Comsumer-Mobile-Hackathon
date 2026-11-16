@@ -1,6 +1,6 @@
 import { v } from "convex/values";
 import { internalMutation } from "./_generated/server";
-import { api, components } from "./_generated/api";
+import { api, components, internal } from "./_generated/api";
 import type { Id } from "./_generated/dataModel";
 import { fail, membership, user } from "./model";
 
@@ -83,6 +83,30 @@ export const adjustCampaign = internalMutation({
       winnerCount: args.winnerCount,
       rewardUsdCents: args.rewardUsdCents,
     });
+    return null;
+  },
+});
+
+export const openAttempts = internalMutation({
+  args: { campaignId: v.id("campaigns"), windowMs: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    const now = Date.now();
+    const deadlineAt = now + args.windowMs;
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: now,
+      attemptStartsAt: now,
+      deadlineAt,
+      reviewDeadlineAt: deadlineAt + 86400_000,
+    });
+    await ctx.runMutation(internal.settlement.transition, { campaignId: c._id });
+    for (const when of [deadlineAt, deadlineAt + 86400_000])
+      await ctx.scheduler.runAt(when, internal.settlement.transition, {
+        campaignId: c._id,
+      });
     return null;
   },
 });
