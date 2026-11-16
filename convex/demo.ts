@@ -205,6 +205,24 @@ export const creditRewards = internalMutation({
   },
 });
 
+export const resetBalance = internalMutation({
+  args: { userId: v.id("users") },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const u = await ctx.db.get("users", args.userId);
+    if (!u) fail("Account not found");
+    if (u.balanceUnits)
+      await credit(
+        ctx,
+        u._id,
+        -u.balanceUnits,
+        "adjustment",
+        `reset:${u._id}:${Date.now()}`,
+      );
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),
