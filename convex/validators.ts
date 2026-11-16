@@ -25,6 +25,9 @@ export const templateId = v.union(
   v.literal("open-can-plank"),
   v.literal("big-mac-30"),
   v.literal("hoodie-pitch"),
+  v.literal("big-mac-proposal"),
+  v.literal("whop-logo-head"),
+  v.literal("marathon-suit"),
 );
 export const campaignSummary = v.object({
   paymentIssue: v.union(v.literal("late_payment_refund_required"), v.null()),

@@ -39,7 +39,7 @@ const TEMPLATES = {
     description:
       "Balance an open can of Coca-Cola on your back and hold a plank for 60 seconds without spilling.",
     criteria:
-      "One continuous video: show the open, full can, place it on your back, and hold a forearm or straight-arm plank for 60 uninterrupted seconds. Knees and hips stay off the ground, nothing supports the can, and the attempt fails if the can spills or falls.",
+      "Balance an open, full can of Coca-Cola on your lower back. Hold a forearm plank for 60 seconds without spilling. Film it in one take with a visible timer.",
   },
   "big-mac-30": {
     title: "Eat a Big Mac in 30 seconds",
@@ -53,6 +53,24 @@ const TEMPLATES = {
       "Wear a Whop hoodie and get a stranger to say \"I'd buy that\" in 30 seconds.",
     criteria:
       "One continuous video: wearing visible Whop merch, pitch your side hustle to a stranger who has agreed to be filmed. Within 30 seconds they say \"I'd buy that\" on camera. No staged friends or paid actors.",
+  },
+  "big-mac-proposal": {
+    title: "Propose to a Big Mac in a wedding dress",
+    description: "Wear a wedding dress to McDonald's and propose to a Big Mac.",
+    criteria:
+      "Wear a wedding dress to McDonald's. Get on one knee and propose to a Big Mac. Film it in one take, with permission.",
+  },
+  "whop-logo-head": {
+    title: "Tattoo the Whop logo on your forehead",
+    description: "Get the Whop logo tattooed or shaved on your head.",
+    criteria:
+      "Get the Whop logo tattooed or shaved on your head. Show the logo clearly in good light. Film the reveal in one take.",
+  },
+  "marathon-suit": {
+    title: "Run a marathon in a suit",
+    description: "Finish an official marathon in a full suit, shirt, and tie.",
+    criteria:
+      "Wear a full suit, shirt and tie the entire race. Finish an official marathon. Show your bib and finish time on camera.",
   },
 };
 export const templates = query({
