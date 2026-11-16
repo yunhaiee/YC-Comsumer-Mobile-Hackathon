@@ -167,7 +167,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
       thumbnailUrl={campaign.thumbnailUrl}
       rewardCents={campaign.rewardUsdCents}
       spotsLeft={spots}
-      spotsTotal={PARTICIPANT_LIMIT}
+      spotsTotal={Math.min(PARTICIPANT_LIMIT, campaign.winnerCount)}
       yesPercent={split?.yes ?? null}
       rules={campaignRules(campaign.criteria)}
       heroDeadline={campaignPhase(campaign, now).target}
@@ -224,7 +224,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
             onClose={() => setSheet(null)}
             rewardCents={campaign.rewardUsdCents}
             spotsLeft={spots}
-            spotsTotal={PARTICIPANT_LIMIT}
+            spotsTotal={Math.min(PARTICIPANT_LIMIT, campaign.winnerCount)}
             rules={campaignRules(campaign.criteria)}
             uploadDeadlineAt={campaign.deadlineAt}
             onClaim={onConfirmDare}

@@ -18,7 +18,7 @@ export function campaignPhase(campaign: CampaignSummary, now: number): { label: 
 export const PARTICIPANT_LIMIT = 50;
 
 export function spotsLeft(campaign: CampaignSummary) {
-  return Math.max(0, PARTICIPANT_LIMIT - campaign.participantCount);
+  return Math.max(0, Math.min(PARTICIPANT_LIMIT, campaign.winnerCount) - campaign.participantCount);
 }
 
 export function campaignRules(criteria: string) {

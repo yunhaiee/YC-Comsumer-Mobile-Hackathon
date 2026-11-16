@@ -67,6 +67,26 @@ export const unpublishCampaign = internalMutation({
   },
 });
 
+export const adjustCampaign = internalMutation({
+  args: {
+    campaignId: v.id("campaigns"),
+    winnerCount: v.number(),
+    rewardUsdCents: v.number(),
+  },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo) fail("Demo campaign required");
+    if (c.submissionCount) fail("Campaign already has submissions");
+    if (args.winnerCount < c.participantCount) fail("Fewer spots than participants");
+    await ctx.db.patch("campaigns", c._id, {
+      winnerCount: args.winnerCount,
+      rewardUsdCents: args.rewardUsdCents,
+    });
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),
