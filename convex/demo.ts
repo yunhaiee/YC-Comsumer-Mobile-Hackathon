@@ -127,6 +127,27 @@ export const betUntilDeadline = internalMutation({
   },
 });
 
+export const closeIn = internalMutation({
+  args: { campaignId: v.id("campaigns"), ms: v.number() },
+  returns: v.null(),
+  handler: async (ctx, args) => {
+    const c = await ctx.db.get("campaigns", args.campaignId);
+    if (!c?.isDemo || !c.published || c.outcome)
+      fail("Open demo campaign required");
+    integer(args.ms, 0, 86400_000, "ms");
+    const deadlineAt = Math.max(Date.now() + args.ms, c.attemptStartsAt);
+    await ctx.db.patch("campaigns", c._id, {
+      predictionClosesAt: Math.min(c.predictionClosesAt, deadlineAt),
+      deadlineAt,
+      reviewDeadlineAt: deadlineAt + 86400_000,
+    });
+    await ctx.scheduler.runAt(deadlineAt, internal.settlement.transition, {
+      campaignId: c._id,
+    });
+    return null;
+  },
+});
+
 export const seedDrafts = internalMutation({
   args: {},
   returns: v.array(v.id("campaigns")),
