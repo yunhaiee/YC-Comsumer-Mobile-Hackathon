@@ -102,7 +102,6 @@ export function BetSheet({
   disabled: boolean;
   error: string | null;
 }) {
-  const [custom, setCustom] = useState("");
   const countdown = useCountdown(closesAt);
   const tooLarge = stake !== null && stake > MAX_STAKE_DOLLARS;
   const options = [
@@ -137,17 +136,14 @@ export function BetSheet({
 
       <View style={styles.chips}>
         {presets.map((preset) => {
-          const selected = custom === "" && stake === preset;
+          const selected = stake === preset;
           return (
             <Pressable
               key={preset}
               accessibilityRole="button"
               accessibilityLabel={`$${preset}`}
               accessibilityState={{ selected }}
-              onPress={() => {
-                setCustom("");
-                onStakeChange(preset);
-              }}
+              onPress={() => onStakeChange(preset)}
               style={({ pressed }) => [styles.chip, selected && styles.chipSelected, pressed && styles.pressed]}
             >
               <Text style={[styles.chipLabel, selected && styles.chipLabelSelected]}>${preset}</Text>
@@ -160,10 +156,9 @@ export function BetSheet({
         <Text style={styles.customLabel}>Custom</Text>
         <Text style={styles.customDollar}>$</Text>
         <TextInput
-          value={custom}
+          value={stake ? String(stake) : ""}
           onChangeText={(value) => {
             const digits = value.replace(/[^0-9]/g, "").slice(0, 6);
-            setCustom(digits);
             onStakeChange(digits ? Number(digits) : null);
           }}
           placeholder="0"
