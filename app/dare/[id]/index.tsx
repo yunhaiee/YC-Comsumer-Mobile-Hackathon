@@ -7,14 +7,14 @@ import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DareActionBar, DareHero, OddsCard, RulesRow, SponsorRow, StatCard } from "@/components/dare";
 import { BetSheet, TakeDareSheet, type Side } from "@/components/dare-sheets";
-import { CenterMessage, IconButton, Loading, NavHeader, Screen } from "@/components/ui";
+import { Button, Card, CenterMessage, IconButton, Loading, NavHeader, Screen, text } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNow } from "@/hooks/useNow";
 import { PARTICIPANT_LIMIT, campaignPhase, campaignRules, poolSplit, spotsLeft } from "@/lib/campaign";
 import { demoDare, type DemoDare } from "@/lib/demo-dares";
-import { errorMessage, formatUsd, newRequestId } from "@/lib/format";
-import { dare } from "@/lib/theme";
+import { errorMessage, formatTime, formatUsd, newRequestId } from "@/lib/format";
+import { colors, dare, font } from "@/lib/theme";
 
 const PRESET_STAKES = [10, 25, 50, 100];
 const DEFAULT_STAKE = 25;
@@ -32,6 +32,7 @@ type DetailProps = {
   rules: string[];
   heroDeadline: number | null;
   winUpToCents: number | undefined;
+  entered?: ReactNode;
   bet: { disabled: boolean; onPress: () => void };
   take: { label: string; disabled: boolean; onPress: () => void };
   sheets: ReactNode;
@@ -61,6 +62,7 @@ function DareDetail(props: DetailProps) {
           <StatCard label="Reward" value={formatUsd(props.rewardCents)} />
           <StatCard label="Spots left" value={String(props.spotsLeft)} total={props.spotsTotal} />
         </View>
+        {props.entered ? <View style={styles.block}>{props.entered}</View> : null}
         <View style={styles.block}>
           <OddsCard yesPercent={props.yesPercent} />
         </View>
@@ -170,6 +172,28 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
       rules={campaignRules(campaign.criteria)}
       heroDeadline={campaignPhase(campaign, now).target}
       winUpToCents={winUpToCents}
+      entered={
+        isParticipant ? (
+          <Card>
+            <Text style={styles.blockTitle}>
+              You’re <Text style={{ color: colors.accent }}>in</Text>
+            </Text>
+            <Text style={text.small}>
+              {viewer.canSubmit
+                ? "Record one continuous video before the deadline."
+                : now < campaign.attemptStartsAt
+                  ? `Attempts open ${formatTime(campaign.attemptStartsAt)}.`
+                  : "Submissions are closed."}
+            </Text>
+            <Button
+              label={viewer.canSubmit ? "Submit evidence" : "My submissions"}
+              icon={viewer.canSubmit ? "videocam" : undefined}
+              variant={viewer.canSubmit ? "primary" : "secondary"}
+              onPress={onOpenSubmission}
+            />
+          </Card>
+        ) : undefined
+      }
       bet={{ disabled: !betOpen || (isAuthenticated && !viewer.canPredict), onPress: () => open("bet") }}
       take={
         isParticipant
@@ -289,4 +313,5 @@ const styles = StyleSheet.create({
   title: { color: dare.colors.text, ...dare.type.detailTitle },
   stats: { flexDirection: "row", gap: 10, marginTop: 20 },
   block: { marginTop: 10 },
+  blockTitle: { color: colors.text, ...font.headline },
 });
