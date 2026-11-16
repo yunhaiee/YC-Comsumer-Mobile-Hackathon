@@ -1,43 +1,65 @@
 import { usePaginatedQuery } from "convex/react";
-import { useState } from "react";
-import { FlatList, Image, StyleSheet, View } from "react-native";
+import { router } from "expo-router";
+import { FlatList, Image, StyleSheet, Text, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DareCard } from "@/components/dare";
-import { Chip, EmptyState, Loading } from "@/components/ui";
+import { EmptyState, Loading } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
-import { TAB_BAR_CLEARANCE, colors, space } from "@/lib/theme";
+import { useNow } from "@/hooks/useNow";
+import { campaignPhase } from "@/lib/campaign";
+import { DEMO_DARES, DEMO_DARES_ENABLED } from "@/lib/demo-dares";
+import { TAB_BAR_CLEARANCE, dare } from "@/lib/theme";
 
-type Filter = "all" | "live" | "ended";
+type CardItem = { id: string; title: string; sponsorName: string; rewardCents: number; deadline: number | null };
+
+const DEMO_ITEMS: CardItem[] = DEMO_DARES.map((d) => ({
+  id: d.id,
+  title: d.title,
+  sponsorName: d.sponsorName,
+  rewardCents: d.bounty * 100,
+  deadline: d.deadlineAt,
+}));
 
 export default function HomeScreen() {
   const insets = useSafeAreaInsets();
-  const [filter, setFilter] = useState<Filter>("all");
-  const { results, status, loadMore } = usePaginatedQuery(api.campaigns.list, {}, { initialNumItems: 10 });
-  const visible = results.filter((c) => (filter === "all" ? true : filter === "live" ? !c.outcome : !!c.outcome));
+  const now = useNow(60_000);
+  const { results, status, loadMore } = usePaginatedQuery(api.campaigns.list, DEMO_DARES_ENABLED ? "skip" : {}, { initialNumItems: 10 });
+  const items: CardItem[] = DEMO_DARES_ENABLED
+    ? DEMO_ITEMS
+    : results.map((c) => ({
+        id: c.id,
+        title: c.title,
+        sponsorName: c.sponsorName,
+        rewardCents: c.rewardUsdCents,
+        deadline: campaignPhase(c, now).target,
+      }));
+  const loading = !DEMO_DARES_ENABLED && status === "LoadingFirstPage";
 
   return (
     <FlatList
       style={styles.screen}
-      contentContainerStyle={[styles.content, { paddingTop: insets.top + 8, paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }]}
-      data={status === "LoadingFirstPage" ? [] : visible}
+      contentContainerStyle={[styles.content, { paddingTop: Math.max(insets.top, 20), paddingBottom: TAB_BAR_CLEARANCE + insets.bottom }]}
+      data={loading ? [] : items}
       keyExtractor={(item) => item.id}
-      renderItem={({ item }) => <DareCard campaign={item} />}
+      renderItem={({ item }) => (
+        <DareCard
+          title={item.title}
+          sponsorName={item.sponsorName}
+          rewardCents={item.rewardCents}
+          deadline={item.deadline}
+          onPress={() => router.push({ pathname: "/dare/[id]", params: { id: item.id } })}
+        />
+      )}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={
-        <View style={styles.header}>
-          <View style={styles.titleRow}>
-            <Image source={require("@/assets/logo-symbol.png")} style={styles.logo} accessibilityRole="header" accessibilityLabel="Dare" />
-          </View>
-          <View style={styles.chips}>
-            <Chip label="All" selected={filter === "all"} onPress={() => setFilter("all")} />
-            <Chip label="Live" selected={filter === "live"} onPress={() => setFilter("live")} />
-            <Chip label="Ended" selected={filter === "ended"} onPress={() => setFilter("ended")} />
-          </View>
+        <View style={styles.brand} accessible accessibilityRole="header" accessibilityLabel="Dare">
+          <Image source={require("@/assets/logo-symbol.png")} style={styles.brandMark} />
+          <Text style={styles.brandText}>Dare</Text>
         </View>
       }
       ListEmptyComponent={
-        status === "LoadingFirstPage" ? (
+        loading ? (
           <View style={{ height: 240 }}>
             <Loading />
           </View>
@@ -54,10 +76,9 @@ export default function HomeScreen() {
 }
 
 const styles = StyleSheet.create({
-  screen: { flex: 1, backgroundColor: colors.background },
-  content: { paddingHorizontal: space.screen, gap: 10, maxWidth: 680, width: "100%", alignSelf: "center" },
-  header: { gap: 16, marginBottom: 8 },
-  titleRow: { flexDirection: "row", alignItems: "center", justifyContent: "center", minHeight: 52 },
-  logo: { width: 29, height: 40, resizeMode: "contain" },
-  chips: { flexDirection: "row", gap: 8 },
+  screen: { flex: 1, backgroundColor: dare.colors.bg },
+  content: { paddingHorizontal: dare.space.screen, gap: dare.space.cardGap, maxWidth: 680, width: "100%", alignSelf: "center" },
+  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, marginBottom: 4 },
+  brandMark: { width: 23, height: 32, resizeMode: "contain" },
+  brandText: { color: dare.colors.text, fontFamily: dare.font[800], fontSize: 28, letterSpacing: -0.6 },
 });

@@ -353,14 +353,12 @@ export function EmptyState({
   icon,
   title,
   accent,
-  accentLogo,
   body,
   action,
 }: {
   icon: IconName | "logo";
   title: string;
   accent?: string;
-  accentLogo?: boolean;
   body?: string;
   action?: ReactNode;
 }) {
@@ -376,7 +374,6 @@ export function EmptyState({
           {title}
           {accent ? <Text style={{ color: colors.accent }}> {accent}</Text> : null}
         </Text>
-        {accentLogo ? <Image source={require("@/assets/logo-wordmark.png")} style={styles.emptyWordmark} accessibilityLabel="Dare" /> : null}
       </View>
       {body ? <Text style={styles.emptyBody}>{body}</Text> : null}
       {action ? <View style={{ marginTop: 8, alignSelf: "stretch", alignItems: "center" }}>{action}</View> : null}
@@ -522,7 +519,6 @@ const styles = StyleSheet.create({
   emptyTitle: { color: colors.text, ...font.title, textAlign: "center" },
   emptyTitleRow: { flexDirection: "row", alignItems: "flex-end", justifyContent: "center", gap: 8, marginTop: 8 },
   emptyLogo: { width: 64, height: 88, resizeMode: "contain", marginBottom: 8 },
-  emptyWordmark: { width: 72, height: 30, resizeMode: "contain", marginBottom: 2 },
   emptyBody: { color: colors.muted, ...font.callout, lineHeight: 21, textAlign: "center" },
   center: { flex: 1, alignItems: "center", justifyContent: "center", padding: 32, gap: 12, backgroundColor: colors.background },
   error: { color: colors.negative, ...font.footnote, lineHeight: 18 },

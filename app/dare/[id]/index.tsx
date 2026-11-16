@@ -1,262 +1,288 @@
 import { useConvexAuth, useMutation, useQuery } from "convex/react";
+import * as Linking from "expo-linking";
 import { router, useLocalSearchParams } from "expo-router";
-import { useState } from "react";
-import { StyleSheet, Text, TextInput, View } from "react-native";
+import { useState, type ReactNode } from "react";
+import { Share, StyleSheet, Text, View } from "react-native";
+import { useSafeAreaInsets } from "react-native-safe-area-context";
 
-import { ForAgainst, PhaseCountdown, Prize, sponsorLabel } from "@/components/dare";
-import { Avatar, Button, Card, CenterMessage, Chip, Disclosure, ErrorText, Loading, NavHeader, Pill, Row, Screen, text } from "@/components/ui";
+import { DareActionBar, DareHero, OddsCard, RulesRow, SponsorRow, StatCard } from "@/components/dare";
+import { BetSheet, TakeDareSheet, type Side } from "@/components/dare-sheets";
+import { CenterMessage, IconButton, Loading, NavHeader, Screen } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import type { Id } from "@/convex/_generated/dataModel";
 import { useNow } from "@/hooks/useNow";
-import { poolSplit } from "@/lib/campaign";
-import { errorMessage, formatTime, formatUsd, newRequestId } from "@/lib/format";
-import { colors, font, radius } from "@/lib/theme";
+import { PARTICIPANT_LIMIT, campaignPhase, campaignRules, poolSplit, spotsLeft } from "@/lib/campaign";
+import { demoDare, type DemoDare } from "@/lib/demo-dares";
+import { errorMessage, formatUsd, newRequestId } from "@/lib/format";
+import { dare } from "@/lib/theme";
 
-type Side = "YES" | "NO";
+const PRESET_STAKES = [10, 25, 50, 100];
+const DEFAULT_STAKE = 25;
+const ACTION_BAR_HEIGHT = 74;
 
-const MAX_STAKE_UNITS = 1_000_000;
+type DetailProps = {
+  id: string;
+  title: string;
+  sponsorName: string;
+  rewardCents: number;
+  spotsLeft: number;
+  spotsTotal: number;
+  yesPercent: number | null;
+  rules: string[];
+  heroDeadline: number | null;
+  winUpToCents: number | undefined;
+  bet: { disabled: boolean; onPress: () => void };
+  take: { label: string; disabled: boolean; onPress: () => void };
+  sheets: ReactNode;
+};
+
+function DareDetail(props: DetailProps) {
+  const insets = useSafeAreaInsets();
+  const share = () =>
+    Share.share({ message: `${props.title}: ${Linking.createURL(`/dare/${props.id}`)}` }).catch(() => undefined);
+  return (
+    <View style={styles.root}>
+      <Screen
+        tabBar={false}
+        contentStyle={[styles.content, { paddingBottom: ACTION_BAR_HEIGHT + Math.max(insets.bottom, 14) + 24 }]}
+      >
+        <NavHeader right={<IconButton icon="share-outline" label="Share dare" onPress={share} />} />
+        <View style={styles.hero}>
+          <DareHero sponsorName={props.sponsorName} deadline={props.heroDeadline} />
+        </View>
+        <View style={styles.sponsor}>
+          <SponsorRow name={props.sponsorName} />
+          <Text style={styles.title} accessibilityRole="header">
+            {props.title}
+          </Text>
+        </View>
+        <View style={styles.stats}>
+          <StatCard label="Reward" value={formatUsd(props.rewardCents)} />
+          <StatCard label="Spots left" value={String(props.spotsLeft)} total={props.spotsTotal} />
+        </View>
+        <View style={styles.block}>
+          <OddsCard yesPercent={props.yesPercent} />
+        </View>
+        <View style={styles.block}>
+          <RulesRow rules={props.rules} />
+        </View>
+      </Screen>
+      <DareActionBar
+        bet={{ label: "Bet", sub: props.winUpToCents === undefined ? "" : `Win up to ${formatUsd(props.winUpToCents)}`, ...props.bet }}
+        take={{ sub: `Earn ${formatUsd(props.rewardCents)}`, ...props.take }}
+      />
+      {props.sheets}
+    </View>
+  );
+}
 
 export default function DareDetailScreen() {
-  const { id, side } = useLocalSearchParams<{ id: string; side?: string }>();
-  const campaignId = id as Id<"campaigns">;
+  const { id } = useLocalSearchParams<{ id: string }>();
+  const demo = demoDare(id);
+  return demo ? <DemoDareDetail dare={demo} /> : <LiveDareDetail campaignId={id as Id<"campaigns">} />;
+}
+
+function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
   const now = useNow();
   const { isAuthenticated } = useConvexAuth();
   const campaign = useQuery(api.campaigns.get, { campaignId });
-  const market = useQuery(api.predictions.getMarket, { campaignId });
+  const ready = !!campaign;
+  const market = useQuery(api.predictions.getMarket, ready ? { campaignId } : "skip");
+  const defaultUnits = DEFAULT_STAKE * 100;
+  const yesQuote = useQuery(api.predictions.quote, ready ? { campaignId, side: "YES", stakeUnits: defaultUnits } : "skip");
+  const noQuote = useQuery(api.predictions.quote, ready ? { campaignId, side: "NO", stakeUnits: defaultUnits } : "skip");
   const join = useMutation(api.campaigns.join);
-  const [joining, setJoining] = useState(false);
-  const [joinError, setJoinError] = useState<string | null>(null);
-  const [pickedSide, setPickedSide] = useState<Side>(side === "NO" ? "NO" : "YES");
+  const place = useMutation(api.predictions.place);
+
+  const [sheet, setSheet] = useState<"bet" | "take" | null>(null);
+  const [side, setSide] = useState<Side>("YES");
+  const [stake, setStake] = useState<number | null>(DEFAULT_STAKE);
+  const [requestId, setRequestId] = useState(newRequestId);
+  const [pending, setPending] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+
+  const lockedSide = market?.position?.side ?? null;
+  const activeSide = lockedSide ?? side;
+  const stakeUnits = stake && stake <= 10_000 ? stake * 100 : 0;
+  const quote = useQuery(
+    api.predictions.quote,
+    ready && sheet === "bet" && stakeUnits > 0 ? { campaignId, side: activeSide, stakeUnits } : "skip",
+  );
 
   if (campaign === undefined) return <Loading />;
   if (campaign === null) return <CenterMessage title="Dare not found" body="It may be unpublished or removed." />;
 
   const viewer = campaign.viewer;
   const split = market ? poolSplit(market.yesStakeUnits, market.noStakeUnits) : null;
+  const spots = spotsLeft(campaign);
+  const live = !campaign.outcome;
+  const betOpen = live && now < campaign.predictionClosesAt;
+  const joinOpen = live && now < campaign.attemptStartsAt && spots > 0;
+  const isParticipant = viewer.role === "participant";
+  const uploadOpen = live && now < campaign.deadlineAt;
 
-  const onJoin = async () => {
-    setJoinError(null);
-    setJoining(true);
-    try {
-      await join({ campaignId });
-    } catch (error) {
-      setJoinError(errorMessage(error));
-    } finally {
-      setJoining(false);
+  const open = (next: "bet" | "take") => {
+    if (!isAuthenticated) {
+      router.push("/sign-in");
+      return;
     }
+    setError(null);
+    setSheet(next);
   };
 
-  return (
-    <Screen tabBar={false}>
-      <NavHeader />
-      <View style={{ gap: 10 }}>
-        <View style={styles.sponsorRow}>
-          <Avatar label={sponsorLabel(campaign.sponsorName)} size={24} />
-          <Text style={styles.sponsor} numberOfLines={1}>
-            {sponsorLabel(campaign.sponsorName)}
-          </Text>
-        </View>
-        <Text style={styles.title}>{campaign.title}</Text>
-      </View>
-
-      <View style={styles.between}>
-        <View>
-          <Prize cents={campaign.rewardUsdCents} size={34} />
-          <Text style={text.small}>
-            per winner · {campaign.winnerCount} {campaign.winnerCount === 1 ? "winner" : "winners"}
-          </Text>
-        </View>
-        <PhaseCountdown campaign={campaign} />
-      </View>
-
-      <View style={{ gap: 10 }}>
-        <View style={styles.between}>
-          <Text style={styles.blockTitle}>Will someone do it?</Text>
-          {split ? <Text style={text.small}>{formatUsd(split.total)} in</Text> : null}
-        </View>
-        <ForAgainst campaign={campaign} onPick={viewer.canPredict ? setPickedSide : undefined} />
-        {market?.position ? (
-          <Row
-            label="You"
-            value={`${market.position.side === "YES" ? "For" : "Against"} · ${formatUsd(market.position.stakeUnits)}${
-              market.position.payoutUnits !== null ? ` → ${formatUsd(market.position.payoutUnits)}` : ""
-            }`}
-            tone={market.position.side === "YES" ? "positive" : "negative"}
-          />
-        ) : null}
-      </View>
-
-      {!isAuthenticated ? (
-        <Button label="Sign in to play" onPress={() => router.push("/sign-in")} />
-      ) : viewer.role === "reviewer" ? (
-        <Text style={text.small}>You review this dare, so you can’t join or predict.</Text>
-      ) : (
-        <>
-          {viewer.role === "participant" ? (
-            <Card>
-              <Text style={styles.blockTitle}>
-                You’re <Text style={{ color: colors.accent }}>in</Text>
-              </Text>
-              <Text style={text.small}>
-                {viewer.canSubmit
-                  ? "Record one continuous video before the deadline."
-                  : now < campaign.attemptStartsAt
-                    ? `Attempts open ${formatTime(campaign.attemptStartsAt)}.`
-                    : "Submissions are closed."}
-              </Text>
-              <Button
-                label={viewer.canSubmit ? "Submit evidence" : "My submissions"}
-                icon={viewer.canSubmit ? "videocam" : undefined}
-                variant={viewer.canSubmit ? "primary" : "secondary"}
-                onPress={() => router.push({ pathname: "/dare/[id]/submit", params: { id: campaign.id } })}
-              />
-            </Card>
-          ) : null}
-          {viewer.canPredict || viewer.role === "predictor" ? (
-            <PredictCard
-              campaignId={campaignId}
-              side={pickedSide}
-              onSideChange={setPickedSide}
-              lockedSide={market?.position?.side ?? null}
-              canPredict={viewer.canPredict}
-            />
-          ) : null}
-          {viewer.canJoin ? (
-            <View style={{ gap: 8 }}>
-              <ErrorText message={joinError} />
-              <Button label="Do the dare" icon="flash" variant={viewer.canPredict ? "secondary" : "primary"} onPress={onJoin} loading={joining} />
-            </View>
-          ) : null}
-          {!viewer.role && !viewer.canJoin && !viewer.canPredict ? <Text style={text.small}>Joining and predictions are closed.</Text> : null}
-        </>
-      )}
-
-      <View>
-        <Disclosure title="Criteria" icon="checkmark-circle-outline">
-          <Text style={text.body}>{campaign.description}</Text>
-          <Text style={text.body}>{campaign.criteria}</Text>
-        </Disclosure>
-        <Disclosure title="Schedule" icon="calendar-outline">
-          <Row label="Joined" value={String(campaign.participantCount)} />
-          <Row label="Predictions close" value={formatTime(campaign.predictionClosesAt)} />
-          <Row label="Attempts start" value={formatTime(campaign.attemptStartsAt)} />
-          <Row label="Evidence due" value={formatTime(campaign.deadlineAt)} />
-        </Disclosure>
-        <Disclosure title="How it works" icon="information-circle-outline">
-          <Text style={text.body}>For means you think someone completes it; Against means nobody does.</Text>
-          <Text style={text.body}>Predictions use USD from test payments only; no real money moves. Variable return; the pool changes until cutoff.</Text>
-          <Text style={text.body}>Players can’t predict on a dare they join, and predictors can’t join.</Text>
-          <Text style={text.body}>The earliest approved completions win. Rewards are recorded, not paid out.</Text>
-        </Disclosure>
-      </View>
-    </Screen>
-  );
-}
-
-function PredictCard({
-  campaignId,
-  side,
-  onSideChange,
-  lockedSide,
-  canPredict,
-}: {
-  campaignId: Id<"campaigns">;
-  side: Side;
-  onSideChange: (side: Side) => void;
-  lockedSide: Side | null;
-  canPredict: boolean;
-}) {
-  const [amount, setAmount] = useState("10");
-  const [pending, setPending] = useState(false);
-  const [error, setError] = useState<string | null>(null);
-  const [requestId, setRequestId] = useState(newRequestId);
-  const place = useMutation(api.predictions.place);
-  const activeSide = lockedSide ?? side;
-  const dollars = Number(amount);
-  const stakeUnits = Number.isFinite(dollars) && dollars > 0 ? Math.round(dollars * 100) : 0;
-  const tooLarge = stakeUnits > MAX_STAKE_UNITS;
-  const validStake = stakeUnits > 0 && !tooLarge;
-  const quote = useQuery(api.predictions.quote, validStake && canPredict ? { campaignId, side: activeSide, stakeUnits } : "skip");
-
-  const onPlace = async () => {
+  const run = async (action: () => Promise<unknown>) => {
     setError(null);
     setPending(true);
     try {
-      await place({ campaignId, side: activeSide, stakeUnits, requestId });
-      setRequestId(newRequestId());
+      await action();
+      setSheet(null);
+      return true;
     } catch (e) {
       setError(errorMessage(e));
+      return false;
     } finally {
       setPending(false);
     }
   };
 
-  if (!canPredict) {
-    return <Text style={text.small}>Predictions are closed. Your stake settles after review.</Text>;
-  }
+  const onConfirmPrediction = async () => {
+    if (await run(() => place({ campaignId, side: activeSide, stakeUnits, requestId }))) setRequestId(newRequestId());
+  };
+  const onConfirmDare = () => run(() => join({ campaignId }));
+  const onOpenSubmission = () => router.push({ pathname: "/dare/[id]/submit", params: { id: campaign.id } });
+
+  const winUpToCents =
+    yesQuote && noQuote ? Math.max(yesQuote.estimatedGrossPayoutUnits, noQuote.estimatedGrossPayoutUnits) : undefined;
 
   return (
-    <Card style={{ gap: 14 }}>
-      <View style={styles.between}>
-        <Text style={styles.blockTitle}>Predict</Text>
-        <Pill label="USD" />
-      </View>
-      <View style={styles.sides}>
-        <Button label="For" variant="yes" selected={activeSide === "YES"} disabled={!!lockedSide && lockedSide !== "YES"} onPress={() => onSideChange("YES")} style={{ flex: 1 }} />
-        <Button label="Against" variant="no" selected={activeSide === "NO"} disabled={!!lockedSide && lockedSide !== "NO"} onPress={() => onSideChange("NO")} style={{ flex: 1 }} />
-      </View>
-      <View style={styles.amountBox}>
-        <Text style={styles.amountPrefix}>$</Text>
-        <TextInput
-          value={amount}
-          onChangeText={setAmount}
-          keyboardType="decimal-pad"
-          style={styles.amountInput}
-          selectionColor={colors.accent}
-          accessibilityLabel="Stake in dollars"
-        />
-      </View>
-      <View style={styles.quick}>
-        {["10", "25", "50", "100"].map((v) => (
-          <Chip key={v} label={`$${v}`} selected={amount === v} onPress={() => setAmount(v)} />
-        ))}
-      </View>
-      {quote ? (
-        <View style={{ gap: 8 }}>
-          <Row label="Est. if right" value={formatUsd(quote.estimatedGrossPayoutUnits)} tone="positive" />
-          <Row label="Max loss" value={formatUsd(quote.maximumLossUnits)} />
-        </View>
-      ) : null}
-      <ErrorText message={tooLarge ? `Max stake is ${formatUsd(MAX_STAKE_UNITS)}.` : error} />
-      <Button
-        label={`Predict ${activeSide === "YES" ? "For" : "Against"}`}
-        onPress={onPlace}
-        loading={pending}
-        disabled={!validStake || (quote !== undefined && !quote.eligible)}
-      />
-      <Text style={[text.small, { textAlign: "center" }]}>
-        {lockedSide ? `You’re ${lockedSide === "YES" ? "For" : "Against"}.` : "Your side locks after one prediction."} Estimates, not odds.
-      </Text>
-    </Card>
+    <DareDetail
+      id={campaign.id}
+      title={campaign.title}
+      sponsorName={campaign.sponsorName}
+      rewardCents={campaign.rewardUsdCents}
+      spotsLeft={spots}
+      spotsTotal={PARTICIPANT_LIMIT}
+      yesPercent={split?.yes ?? null}
+      rules={campaignRules(campaign.criteria)}
+      heroDeadline={campaignPhase(campaign, now).target}
+      winUpToCents={winUpToCents}
+      bet={{ disabled: !betOpen || (isAuthenticated && !viewer.canPredict), onPress: () => open("bet") }}
+      take={
+        isParticipant
+          ? { label: "Upload your attempt", disabled: !uploadOpen, onPress: onOpenSubmission }
+          : { label: "Do the dare", disabled: !joinOpen || (isAuthenticated && !viewer.canJoin), onPress: () => open("take") }
+      }
+      sheets={
+        <>
+          <BetSheet
+            visible={sheet === "bet"}
+            onClose={() => setSheet(null)}
+            closesAt={campaign.predictionClosesAt}
+            yesPercent={split?.yes ?? null}
+            side={activeSide}
+            onSideChange={setSide}
+            lockedSide={lockedSide}
+            presets={PRESET_STAKES}
+            stake={stake}
+            onStakeChange={setStake}
+            payoutCents={quote?.estimatedGrossPayoutUnits}
+            onConfirm={onConfirmPrediction}
+            pending={pending}
+            disabled={!betOpen || !viewer.canPredict || quote?.eligible === false}
+            error={error ?? (quote?.eligible === false ? "Not enough credits for this bet." : null)}
+          />
+          <TakeDareSheet
+            visible={sheet === "take"}
+            onClose={() => setSheet(null)}
+            rewardCents={campaign.rewardUsdCents}
+            spotsLeft={spots}
+            spotsTotal={PARTICIPANT_LIMIT}
+            rules={campaignRules(campaign.criteria)}
+            uploadDeadlineAt={campaign.deadlineAt}
+            onClaim={onConfirmDare}
+            pending={pending}
+            disabled={!joinOpen || !viewer.canJoin}
+            error={error}
+          />
+        </>
+      }
+    />
+  );
+}
+
+const DEMO_ERROR = "This is a demo dare. Open a live dare to bet or claim a spot.";
+
+function DemoDareDetail({ dare: d }: { dare: DemoDare }) {
+  const now = useNow();
+  const [sheet, setSheet] = useState<"bet" | "take" | null>(null);
+  const [side, setSide] = useState<Side>("YES");
+  const [stake, setStake] = useState<number | null>(d.defaultStake);
+  const [error, setError] = useState<string | null>(null);
+  const open = now < d.deadlineAt;
+  const payoutDollars = stake ? (d.payoutAtDefaultStake[side === "YES" ? "yes" : "no"] * stake) / d.defaultStake : undefined;
+  const openSheet = (next: "bet" | "take") => {
+    setError(null);
+    setSheet(next);
+  };
+
+  return (
+    <DareDetail
+      id={d.id}
+      title={d.title}
+      sponsorName={d.sponsorName}
+      rewardCents={d.bounty * 100}
+      spotsLeft={d.availableSpots}
+      spotsTotal={d.totalSpots}
+      yesPercent={d.yesPercent}
+      rules={d.rules}
+      heroDeadline={d.deadlineAt}
+      winUpToCents={Math.max(d.payoutAtDefaultStake.yes, d.payoutAtDefaultStake.no) * 100}
+      bet={{ disabled: !open, onPress: () => openSheet("bet") }}
+      take={{ label: "Do the dare", disabled: !open || d.availableSpots <= 0, onPress: () => openSheet("take") }}
+      sheets={
+        <>
+          <BetSheet
+            visible={sheet === "bet"}
+            onClose={() => setSheet(null)}
+            closesAt={d.deadlineAt}
+            yesPercent={d.yesPercent}
+            side={side}
+            onSideChange={setSide}
+            lockedSide={null}
+            presets={d.presetStakes}
+            stake={stake}
+            onStakeChange={setStake}
+            payoutCents={payoutDollars === undefined ? undefined : Math.round(payoutDollars * 100)}
+            onConfirm={() => setError(DEMO_ERROR)}
+            pending={false}
+            disabled={!open}
+            error={error}
+          />
+          <TakeDareSheet
+            visible={sheet === "take"}
+            onClose={() => setSheet(null)}
+            rewardCents={d.bounty * 100}
+            spotsLeft={d.availableSpots}
+            spotsTotal={d.totalSpots}
+            rules={d.rules}
+            uploadDeadlineAt={d.deadlineAt}
+            onClaim={() => setError(DEMO_ERROR)}
+            pending={false}
+            disabled={!open}
+            error={error}
+          />
+        </>
+      }
+    />
   );
 }
 
 const styles = StyleSheet.create({
-  sponsorRow: { flexDirection: "row", alignItems: "center", gap: 10 },
-  sponsor: { flex: 1, color: colors.muted, ...font.footnote, fontWeight: "500" },
-  title: { color: colors.text, ...font.largeTitle, fontSize: 28, lineHeight: 34 },
-  blockTitle: { color: colors.text, ...font.headline },
-  between: { flexDirection: "row", justifyContent: "space-between", alignItems: "center", gap: 10 },
-  sides: { flexDirection: "row", gap: 10 },
-  amountBox: {
-    flexDirection: "row",
-    alignItems: "center",
-    borderRadius: radius.md,
-    borderWidth: 1,
-    borderColor: colors.border,
-    paddingHorizontal: 18,
-  },
-  amountInput: { flex: 1, minHeight: 60, color: colors.text, fontSize: 28, fontWeight: "700" },
-  amountPrefix: { color: colors.muted, fontSize: 28, fontWeight: "700", marginRight: 4 },
-  quick: { flexDirection: "row", gap: 8 },
+  root: { flex: 1, backgroundColor: dare.colors.bg },
+  content: { paddingHorizontal: dare.space.screen, gap: 0 },
+  hero: { marginTop: 8 },
+  sponsor: { marginTop: 18, gap: 10 },
+  title: { color: dare.colors.text, ...dare.type.detailTitle },
+  stats: { flexDirection: "row", gap: 10, marginTop: 20 },
+  block: { marginTop: 10 },
 });

@@ -15,6 +15,19 @@ export function campaignPhase(campaign: CampaignSummary, now: number): { label: 
   return { label: "Sponsor reviewing", target: campaign.reviewDeadlineAt, tone: "warning" };
 }
 
+export const PARTICIPANT_LIMIT = 50;
+
+export function spotsLeft(campaign: CampaignSummary) {
+  return Math.max(0, PARTICIPANT_LIMIT - campaign.participantCount);
+}
+
+export function campaignRules(criteria: string) {
+  return criteria
+    .split(/\n+|(?<=[.!?])\s+(?=[A-Z])/)
+    .map((rule) => rule.trim().replace(/\.$/, ""))
+    .filter(Boolean);
+}
+
 export function poolSplit(yesUnits: number, noUnits: number) {
   const total = yesUnits + noUnits;
   if (total === 0) return null;
