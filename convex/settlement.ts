@@ -43,7 +43,7 @@ export async function resolveCampaign(
   if (prior) return { outcome: prior.outcome, settlementId: prior._id };
   const c = await campaign(ctx, campaignId),
     now = Date.now();
-  if (!c.published || now < c.deadlineAt) return null;
+  if (!c.published) return null;
   const submissions = await ctx.db
     .query("submissions")
     .withIndex("by_campaignId_and_userId", (q) => q.eq("campaignId", c._id))
@@ -54,7 +54,6 @@ export async function resolveCampaign(
   )
     fail("Submission count invariant failed");
   const pending = submissions.some((s) => s.status === "pending");
-  if (pending && now < c.reviewDeadlineAt) return null;
   const approved = submissions
     .filter((s) => s.status === "approved")
     .sort(
@@ -62,6 +61,9 @@ export async function resolveCampaign(
         a.submittedAt - b.submittedAt ||
         (a._id < b._id ? -1 : a._id > b._id ? 1 : 0),
     );
+  const filled = new Set(approved.map((s) => s.userId)).size >= c.winnerCount;
+  if (now < c.deadlineAt && (pending || !filled)) return null;
+  if (pending && now < c.reviewDeadlineAt) return null;
   const outcome = pending
     ? ("VOID" as const)
     : approved.length > 0
