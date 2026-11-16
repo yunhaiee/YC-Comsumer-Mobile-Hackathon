@@ -1,5 +1,7 @@
 # DARE: four-hour implementation contract
 
+> This is the plan the team wrote at the start of the hackathon, before building. It's kept as a record of how the work was split up and what was decided. Some details, such as route paths, statuses, and "pending" notes, changed during implementation. See the [README](../README.md) for how the finished app works.
+
 ## Status
 
 Foundation merged as PR #1 at bd46a66. YL (YCCO-3) and TK (YCCO-5) have agreed on the consumer function names and the upload-ticket boundary below; implementation is underway. TK confirmed the prediction/review policies and sponsor-configured winner counts. YL approved username/password auth and Whop delegation. SF (YCCO-4) now owns sponsor UI plus Revyl; YL's Subagent 1 owns only convex/whop/ and its tests. Do not mistake documentation for working integration.

@@ -103,8 +103,6 @@ export const styles = StyleSheet.create({
   page: { paddingHorizontal: 20, gap: 16, width: "100%", maxWidth: 760, alignSelf: "center" },
   navigation: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52, marginBottom: 4 },
   back: { width: 44, height: 44, borderRadius: 22, backgroundColor: colors.surfaceHigh, borderWidth: hairline, borderColor: colors.hairline, alignItems: "center", justifyContent: "center" },
-  wordmark: { fontSize: 24, fontWeight: "800", letterSpacing: -1, color: colors.text },
-  studio: { fontSize: 13, color: colors.muted },
   title: { flex: 1, fontSize: 34, fontWeight: "700", letterSpacing: 0.37, color: colors.text },
   heading: { fontSize: 22, fontWeight: "700", letterSpacing: -0.3, color: colors.text },
   eyebrow: { fontSize: 13, fontWeight: "500", color: colors.muted },

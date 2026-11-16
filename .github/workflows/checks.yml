@@ -1,4 +1,4 @@
-name: Foundation checks
+name: Checks
 
 on:
   pull_request:
