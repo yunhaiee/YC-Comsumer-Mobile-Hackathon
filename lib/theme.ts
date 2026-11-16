@@ -37,3 +37,62 @@ export const font = {
 } as const;
 
 export const TAB_BAR_CLEARANCE = 112;
+
+const inter = {
+  400: "Inter_400Regular",
+  500: "Inter_500Medium",
+  600: "Inter_600SemiBold",
+  700: "Inter_700Bold",
+  800: "Inter_800ExtraBold",
+} as const;
+
+export const dare = {
+  colors: {
+    bg: "#111111",
+    surface: "#1B1B1B",
+    surfaceBorder: "#262626",
+    sheet: "#1A1A1A",
+    sheetBorder: "#2A2A2A",
+    control: "#222222",
+    controlRaised: "#232323",
+    controlBorder: "#2E2E2E",
+    controlBorderStrong: "#333333",
+    divider: "#222222",
+    sheetDivider: "#2A2A2A",
+    badge: "#2A2A2A",
+    grabber: "#3A3A3A",
+    closeButton: "#262626",
+    placeholder: "#2A2A2A",
+    text: "#FFFFFF",
+    textMuted: "#A0A0A0",
+    textSubtle: "#8C8C8C",
+    textOption: "#B5B5B5",
+    accent: "#7104E6",
+    accentGlow: "rgba(113,4,230,0.6)",
+    yes: "#3DDC84",
+    yesTint: "rgba(61,220,132,0.12)",
+    no: "#FF6B81",
+    noTint: "rgba(255,107,129,0.12)",
+    urgent: "#D93A4E",
+    verified: "#3B82F6",
+    scrimPill: "rgba(0,0,0,0.72)",
+    dim: "rgba(0,0,0,0.55)",
+  },
+  radius: { card: 20, hero: 20, stat: 16, button: 16, option: 18, field: 14, sheet: 28, pill: 999 },
+  space: { screen: 16, cardGap: 12, tap: 44 },
+  font: inter,
+  type: {
+    listTitle: { fontFamily: inter[800], fontSize: 32, letterSpacing: -0.8 },
+    detailTitle: { fontFamily: inter[800], fontSize: 26, lineHeight: 31, letterSpacing: -0.6 },
+    sheetTitle: { fontFamily: inter[800], fontSize: 21, letterSpacing: -0.4 },
+    cardTitle: { fontFamily: inter[800], fontSize: 21, lineHeight: 25, letterSpacing: -0.4 },
+    cardReward: { fontFamily: inter[800], fontSize: 30, lineHeight: 34, letterSpacing: -0.7 },
+    stat: { fontFamily: inter[800], fontSize: 24 },
+    button: { fontFamily: inter[700], fontSize: 17 },
+    buttonSub: { fontFamily: inter[600], fontSize: 12 },
+    body: { fontFamily: inter[400], fontSize: 15 },
+    label: { fontFamily: inter[400], fontSize: 13 },
+    labelMedium: { fontFamily: inter[500], fontSize: 14 },
+    disclaimer: { fontFamily: inter[400], fontSize: 12 },
+  },
+} as const;
