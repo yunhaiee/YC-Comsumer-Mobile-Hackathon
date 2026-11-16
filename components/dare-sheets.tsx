@@ -295,8 +295,8 @@ const styles = StyleSheet.create({
     borderColor: c.controlBorder,
   },
   customLabel: { color: c.textMuted, fontFamily: f[400], fontSize: 15 },
-  customDollar: { marginLeft: "auto", color: c.text, fontFamily: f[700], fontSize: 17 },
-  customInput: { width: 90, height: 46, color: c.text, fontFamily: f[700], fontSize: 17, textAlign: "right", padding: 0 },
+  customDollar: { marginLeft: "auto", marginRight: -7, color: c.text, fontFamily: f[700], fontSize: 17 },
+  customInput: { minWidth: 12, maxWidth: 90, height: 46, color: c.text, fontFamily: f[700], fontSize: 17, padding: 0 },
   payout: {
     flexDirection: "row",
     alignItems: "center",
