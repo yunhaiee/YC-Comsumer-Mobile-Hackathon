@@ -123,6 +123,7 @@ export function Screen({
       showsVerticalScrollIndicator={false}
       {...scrollProps}
     >
+      {tabBar ? <BrandHeader /> : null}
       {back || title || right ? (
         <View style={styles.header}>
           {back ? <BackButton /> : null}
@@ -152,14 +153,30 @@ export function BackButton() {
   );
 }
 
+export function BrandHeader() {
+  return (
+    <View style={styles.brand} accessible accessibilityRole="header" accessibilityLabel="Dare">
+      <Image source={require("@/assets/logo-symbol.png")} style={styles.brandMark} />
+      <Text style={styles.brandText}>Dare</Text>
+    </View>
+  );
+}
+
 export function NavHeader({ title, right }: { title?: string; right?: ReactNode }) {
   return (
-    <View style={styles.navHeader}>
-      <BackButton />
-      <Text style={styles.navTitle} numberOfLines={1}>
-        {title}
-      </Text>
-      <View style={styles.navSide}>{right}</View>
+    <View>
+      <View style={styles.navHeader}>
+        <BackButton />
+        <View style={styles.navCenter}>
+          <BrandHeader />
+        </View>
+        <View style={styles.navSide}>{right}</View>
+      </View>
+      {title ? (
+        <Text style={styles.navTitle} accessibilityRole="header" numberOfLines={1}>
+          {title}
+        </Text>
+      ) : null}
     </View>
   );
 }
@@ -421,7 +438,11 @@ const styles = StyleSheet.create({
   headerRight: { flexDirection: "row", gap: 10 },
   largeTitle: { flex: 1, color: colors.text, ...font.largeTitle },
   navHeader: { flexDirection: "row", alignItems: "center", gap: 12, minHeight: 52 },
-  navTitle: { flex: 1, textAlign: "center", color: colors.text, ...font.headline },
+  navCenter: { flex: 1, alignItems: "center" },
+  navTitle: { color: colors.text, ...font.title, marginTop: 12 },
+  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52 },
+  brandMark: { width: 23, height: 32, resizeMode: "contain" },
+  brandText: { color: colors.text, fontFamily: "Inter_800ExtraBold", fontSize: 28, letterSpacing: -0.6 },
   navSide: { width: 44, alignItems: "flex-end" },
   button: { minHeight: 54, paddingHorizontal: 20, borderRadius: radius.md, alignItems: "center", justifyContent: "center" },
   buttonInner: { flexDirection: "row", alignItems: "center", gap: 8 },

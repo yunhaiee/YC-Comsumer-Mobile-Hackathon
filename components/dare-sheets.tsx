@@ -1,6 +1,6 @@
 import { Ionicons } from "@expo/vector-icons";
 import { useEffect, useState, type PropsWithChildren } from "react";
-import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, StyleSheet, Text, TextInput, View } from "react-native";
+import { ActivityIndicator, Animated, KeyboardAvoidingView, Modal, Platform, Pressable, ScrollView, StyleSheet, Text, TextInput, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { RulesList, StatCard } from "@/components/dare";
@@ -29,7 +29,7 @@ function Sheet({ visible, onClose, title, children }: PropsWithChildren<{ visibl
 
   return (
     <Modal visible={visible} transparent animationType="fade" onRequestClose={onClose} statusBarTranslucent>
-      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={styles.root}>
+      <KeyboardAvoidingView behavior={Platform.OS === "ios" ? "padding" : undefined} style={[styles.root, { paddingTop: insets.top + 12 }]}>
         <Pressable style={styles.dim} onPress={onClose} accessibilityRole="button" accessibilityLabel="Close sheet" />
         <Animated.View style={[styles.sheet, { paddingBottom: Math.max(insets.bottom, 16), transform: [{ translateY: offset }] }]}>
           <View style={styles.grabber} />
@@ -41,7 +41,9 @@ function Sheet({ visible, onClose, title, children }: PropsWithChildren<{ visibl
               <Ionicons name="close" size={20} color={c.text} />
             </Pressable>
           </View>
-          {children}
+          <ScrollView style={styles.body} bounces={false} keyboardShouldPersistTaps="handled" showsVerticalScrollIndicator={false}>
+            {children}
+          </ScrollView>
         </Animated.View>
       </KeyboardAvoidingView>
     </Modal>
@@ -238,7 +240,9 @@ export function TakeDareSheet({
 const styles = StyleSheet.create({
   root: { flex: 1, justifyContent: "flex-end" },
   dim: { position: "absolute", top: 0, right: 0, bottom: 0, left: 0, backgroundColor: c.dim },
+  body: { flexGrow: 0 },
   sheet: {
+    flexShrink: 1,
     backgroundColor: c.sheet,
     borderTopLeftRadius: dare.radius.sheet,
     borderTopRightRadius: dare.radius.sheet,

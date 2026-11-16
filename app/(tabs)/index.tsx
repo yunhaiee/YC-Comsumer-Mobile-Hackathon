@@ -1,10 +1,10 @@
 import { usePaginatedQuery } from "convex/react";
 import { router } from "expo-router";
-import { FlatList, Image, StyleSheet, Text, View } from "react-native";
+import { FlatList, StyleSheet, View } from "react-native";
 import { useSafeAreaInsets } from "react-native-safe-area-context";
 
 import { DareCard } from "@/components/dare";
-import { EmptyState, Loading } from "@/components/ui";
+import { BrandHeader, EmptyState, Loading } from "@/components/ui";
 import { api } from "@/convex/_generated/api";
 import { useNow } from "@/hooks/useNow";
 import { campaignPhase } from "@/lib/campaign";
@@ -53,9 +53,8 @@ export default function HomeScreen() {
       )}
       showsVerticalScrollIndicator={false}
       ListHeaderComponent={
-        <View style={styles.brand} accessible accessibilityRole="header" accessibilityLabel="Dare">
-          <Image source={require("@/assets/logo-symbol.png")} style={styles.brandMark} />
-          <Text style={styles.brandText}>Dare</Text>
+        <View style={styles.brand}>
+          <BrandHeader />
         </View>
       }
       ListEmptyComponent={
@@ -78,7 +77,5 @@ export default function HomeScreen() {
 const styles = StyleSheet.create({
   screen: { flex: 1, backgroundColor: dare.colors.bg },
   content: { paddingHorizontal: dare.space.screen, gap: dare.space.cardGap, maxWidth: 680, width: "100%", alignSelf: "center" },
-  brand: { flexDirection: "row", alignItems: "center", justifyContent: "center", gap: 8, minHeight: 52, marginBottom: 4 },
-  brandMark: { width: 23, height: 32, resizeMode: "contain" },
-  brandText: { color: dare.colors.text, fontFamily: dare.font[800], fontSize: 28, letterSpacing: -0.6 },
+  brand: { marginBottom: 4 },
 });

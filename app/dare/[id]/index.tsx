@@ -169,7 +169,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
       bet={{ disabled: !betOpen || (isAuthenticated && !viewer.canPredict), onPress: () => open("bet") }}
       take={
         isParticipant
-          ? { label: "Upload your attempt", disabled: !uploadOpen, onPress: onOpenSubmission }
+          ? { label: viewer.canSubmit && uploadOpen ? "Upload your attempt" : "Your attempts", disabled: false, onPress: onOpenSubmission }
           : { label: "Do the dare", disabled: !joinOpen || (isAuthenticated && !viewer.canJoin), onPress: () => open("take") }
       }
       sheets={
