@@ -231,7 +231,9 @@ export const listOwned = query({
         .withIndex("by_sponsorId", (q) => q.eq("sponsorId", m.sponsorId))
         .order("desc")
         .take(50)
-    ).map(summary);
+    )
+      .filter((c) => c.published)
+      .map(summary);
   },
 });
 export const get = query({

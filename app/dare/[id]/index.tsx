@@ -149,8 +149,10 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
   const onConfirmPrediction = async () => {
     if (await run(() => place({ campaignId, side: activeSide, stakeUnits, requestId }))) setRequestId(newRequestId());
   };
-  const onConfirmDare = () => run(() => join({ campaignId }));
   const onOpenSubmission = () => router.push({ pathname: "/dare/[id]/submit", params: { id: campaign.id } });
+  const onConfirmDare = async () => {
+    if (await run(() => join({ campaignId }))) onOpenSubmission();
+  };
 
   const winUpToCents =
     yesQuote && noQuote ? Math.max(yesQuote.estimatedGrossPayoutUnits, noQuote.estimatedGrossPayoutUnits) : undefined;
@@ -171,7 +173,7 @@ function LiveDareDetail({ campaignId }: { campaignId: Id<"campaigns"> }) {
       bet={{ disabled: !betOpen || (isAuthenticated && !viewer.canPredict), onPress: () => open("bet") }}
       take={
         isParticipant
-          ? { label: viewer.canSubmit && uploadOpen ? "Upload your attempt" : "Your attempts", disabled: false, onPress: onOpenSubmission }
+          ? { label: uploadOpen ? "Upload your attempt" : "Your attempts", disabled: false, onPress: onOpenSubmission }
           : { label: "Do the dare", disabled: !joinOpen || (isAuthenticated && !viewer.canJoin), onPress: () => open("take") }
       }
       sheets={
